@@ -1,24 +1,20 @@
 package cc.twittertools.index;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Arrays;
 import java.util.List;
 
-import junit.framework.JUnit4TestAdapter;
-
+import junit.framework.TestCase;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.util.Version;
-import org.junit.Test;
-
-import cc.twittertools.index.TweetAnalyzer;
 
 import com.google.common.collect.Lists;
+import org.junit.Assert;
 
-public class TokenizationTest {
+public class TokenizationTest extends TestCase {
 
   Object[][] examples = new Object[][] {
       {"AT&T getting secret immunity from wiretapping laws for government surveillance http://vrge.co/ZP3Fx5",
@@ -54,28 +50,28 @@ public class TokenizationTest {
 
       {"this][is[lots[(of)words+with-lots=of-strange!characters?$in-fact=it&has&Every&Single:one;of<them>in_here_B&N_test_test?test\\test^testing`testing{testing}testing…testing¬testing·testing what?",
        new String[] {"thi", "is", "lot", "of", "word", "with", "lot", "of", "strang", "charact", "in", "fact", "it", "ha", "everi", "singl", "on", "of", "them", "in", "here", "bn", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "what"}},
+
+      {"@Porsche : 2014 is already here #zebracar #LM24 http://bit.ly/18RUczp\u00a0 pic.twitter.com/cQ7z0c2hMg",
+       new String[] {"@porsche", "2014", "is", "alreadi", "here", "#zebracar", "#lm24", "http://bit.ly/18RUczp", "pic.twitter.com/cQ7z0c2hMg"}},
+
+      {"Some cars are in the river #NBC4NY http://t.co/WmK9Hc…",
+       new String[] {"some", "car", "ar", "in", "the", "river", "#nbc4ny", "http://t.co/WmK9Hc"}}
   };
-  
-  @Test
-  public void basic() throws Exception {
+
+  public void testTokenizer() throws Exception {
     Analyzer analyzer = new TweetAnalyzer(Version.LUCENE_43);
 
     for (int i = 0; i < examples.length; i++) {
-      verify((String[]) examples[i][1], parseKeywords(analyzer, (String) examples[i][0]));
+      Assert.assertEquals(
+              Arrays.toString((String[]) examples[i][1]),
+              Arrays.toString(analyze(analyzer, (String) examples[i][0])));
     }
   }
 
-  public void verify(String[] truth, List<String> tokens) {
-    assertEquals(truth.length, tokens.size());
-    for ( int i=0; i<truth.length; i++) {
-      assertEquals(truth[i], tokens.get(i));
-    }
-  }
-
-  public List<String> parseKeywords(Analyzer analyzer, String keywords) throws IOException {
+  public String[] analyze(Analyzer analyzer, String text) throws IOException {
     List<String> list = Lists.newArrayList();
 
-    TokenStream tokenStream = analyzer.tokenStream(null, new StringReader(keywords));
+    TokenStream tokenStream = analyzer.tokenStream(null, new StringReader(text));
     CharTermAttribute cattr = tokenStream.addAttribute(CharTermAttribute.class);
     tokenStream.reset();
     while (tokenStream.incrementToken()) {
@@ -87,10 +83,7 @@ public class TokenizationTest {
     tokenStream.end();
     tokenStream.close();
 
-    return list;
+    return list.toArray(new String[list.size()]);
   }
 
-  public static junit.framework.Test suite() {
-    return new JUnit4TestAdapter(TokenizationTest.class);
-  }
 }

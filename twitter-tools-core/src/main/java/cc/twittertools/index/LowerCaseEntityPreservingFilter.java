@@ -62,6 +62,14 @@ public final class LowerCaseEntityPreservingFilter extends TokenFilter {
       tailBufferSaved = null;
     }
 
+    int k = termAtt.length() - 1;
+    if (k > 0 && isNonentitySuffix(k)) {
+      // Remove the tail of the string from the buffer and save it
+      // for the next iteration
+      tailBuffer = Arrays.copyOfRange(buffer, k, termAtt.length());
+      termAtt.setLength(k);
+    }
+
     int entityType = isEntity(termAtt.toString());
     if (entityType == VALID_URL) {
       keywordAttr.setKeyword(true);
@@ -104,7 +112,7 @@ public final class LowerCaseEntityPreservingFilter extends TokenFilter {
           break;
         }
       }
-      
+
       // TODO: Preserve Email Addresses
 
       if (isEntity(termAtt.toString()) != INVALID_ENTITY) {
@@ -170,6 +178,19 @@ public final class LowerCaseEntityPreservingFilter extends TokenFilter {
       return VALID_HASHTAG;
     else
       return INVALID_ENTITY;
+  }
+
+  /**
+   * Check if the character at position i in the buffer is a delimiter which
+   * wouldn't be used as suffix of an entity
+   */
+  public boolean isNonentitySuffix(int i) {
+    final char[] buffer = termAtt.buffer();
+    switch (buffer[i]) {
+      case '…':
+        return true;
+    }
+    return false;
   }
 
   /**

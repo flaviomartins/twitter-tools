@@ -18,11 +18,12 @@ package cc.twittertools.index;
 
 import java.io.Reader;
 
+import com.google.common.base.CharMatcher;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.core.WhitespaceTokenizer;
 import org.apache.lucene.analysis.en.PorterStemFilter;
+import org.apache.lucene.analysis.util.CharTokenizer;
 import org.apache.lucene.util.Version;
 
 import com.google.common.base.Preconditions;
@@ -42,7 +43,12 @@ public final class TweetAnalyzer extends Analyzer {
 
   @Override
   protected TokenStreamComponents createComponents(final String fieldName, final Reader reader) {
-    Tokenizer source = new WhitespaceTokenizer(matchVersion, reader);
+    Tokenizer source = new CharTokenizer(matchVersion, reader) {
+      @Override
+      protected boolean isTokenChar(int c) {
+        return !CharMatcher.WHITESPACE.matches((char)c);
+      }
+    };
     TokenStream filter = new LowerCaseEntityPreservingFilter(source);
 
     if (stemming) {
