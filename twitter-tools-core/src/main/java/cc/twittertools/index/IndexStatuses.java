@@ -16,6 +16,7 @@
 
 package cc.twittertools.index;
 
+import cc.twittertools.corpus.data.TwitterstreamJsonStatusCorpusReader;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.io.BufferedReader;
@@ -93,6 +94,7 @@ public class IndexStatuses {
   private static final String UPDATE_OPTION = "update";
   private static final String PRINT_DPS_OPTION = "printDPS";
   private static final String THREAD_COUNT_OPTION = "threadCount";
+  private static final String FORMAT_OPTION = "twitterstream";
 
   @SuppressWarnings("static-access")
   public static void main(String[] args) throws Exception {
@@ -104,6 +106,7 @@ public class IndexStatuses {
     options.addOption(new Option(VERBOSE_OPTION, "more verbose"));
     options.addOption(new Option(UPDATE_OPTION, "update index"));
     options.addOption(new Option(PRINT_DPS_OPTION, "print DPS"));
+    options.addOption(new Option(FORMAT_OPTION, "use twitterstream tar format"));
 
     options.addOption(OptionBuilder.withArgName("dir").hasArg()
         .withDescription("source collection directory").create(COLLECTION_OPTION));
@@ -195,7 +198,13 @@ public class IndexStatuses {
       System.exit(-1);
     }
 
-    StatusStream stream = new JsonStatusCorpusReader(file);
+    StatusStream stream;
+    if (cmdline.hasOption(FORMAT_OPTION)) {
+      LOG.info("format: use twitterstream tar format");
+      stream = new TwitterstreamJsonStatusCorpusReader(file);
+    } else {
+      stream = new JsonStatusCorpusReader(file);
+    }
 
     final Directory dir = FSDirectory.open(new File(dirPath));
 
