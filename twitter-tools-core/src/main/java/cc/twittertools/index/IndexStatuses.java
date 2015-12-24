@@ -201,7 +201,7 @@ public class IndexStatuses {
     StatusStream stream;
     if (cmdline.hasOption(FORMAT_OPTION)) {
       LOG.info("format: use twitterstream tar format");
-      stream = new TwitterstreamJsonStatusCorpusReader(file);
+      stream = new TwitterstreamJsonStatusCorpusReader(file, numThreads);
     } else {
       stream = new JsonStatusCorpusReader(file);
     }

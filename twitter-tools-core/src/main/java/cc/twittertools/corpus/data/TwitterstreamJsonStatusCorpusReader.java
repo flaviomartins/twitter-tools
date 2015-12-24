@@ -21,6 +21,8 @@ import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Abstraction for a corpus of statuses. A corpus is assumed to consist of a number of blocks, each
@@ -28,11 +30,15 @@ import java.io.IOException;
  * through all blocks, in sorted lexicographic order of the files.
  */
 public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
-  private final File[] files;
-  private int nextFile = 0;
-  private TarJsonStatusCorpusReader currentReader = null;
 
-  public TwitterstreamJsonStatusCorpusReader(File file) throws IOException {
+  private static final Object POISON_PILL = new Object();
+
+  private final File[] files;
+  private BlockingQueue blockingQueue;
+  private ExecutorService executor;
+  private AtomicBoolean stop;
+
+  public TwitterstreamJsonStatusCorpusReader(File file, int numThreads) throws IOException, InterruptedException {
     Preconditions.checkNotNull(file);
 
     if (!file.isDirectory()) {
@@ -48,37 +54,70 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
     if (files.length == 0) {
       throw new IOException(file + " does not contain any .tar files!");
     }
+
+    blockingQueue = new ArrayBlockingQueue(10000);
+
+    executor = Executors.newFixedThreadPool(numThreads);
+    for (int i = 0; i < files.length; i++) {
+      Runnable worker = new TarReaderThread(files[i], blockingQueue);
+      executor.execute(worker);
+    }
+    executor.shutdown();
+
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+          blockingQueue.put(POISON_PILL);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
+  }
+
+  class TarReaderThread implements Runnable {
+
+    private final File file;
+    private final BlockingQueue blockingQueue;
+    private TarJsonStatusCorpusReader currentReader;
+
+    public TarReaderThread(File file, BlockingQueue blockingQueue) {
+      this.file = file;
+      this.blockingQueue = blockingQueue;
+    }
+
+    @Override
+    public void run() {
+      try {
+        currentReader = new TarJsonStatusCorpusReader(file);
+
+        Status status = null;
+        while ((status = currentReader.next()) != null) {
+          blockingQueue.put(status);
+        }
+      } catch (Exception e) {
+      }
+    }
   }
 
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
   public Status next() throws IOException {
-    if (currentReader == null) {
-      currentReader = new TarJsonStatusCorpusReader(files[nextFile]);
-      nextFile++;
-    }
-
-    Status status = null;
-    while (true) {
-      status = currentReader.next();
-      if (status != null) {
-        return status;
-      }
-
-      if (nextFile >= files.length) {
-        // We're out of files to read. Must be the end of the corpus.
+    try {
+      Object element = blockingQueue.take();
+      if (POISON_PILL.equals(element))
         return null;
-      }
 
-      currentReader.close();
-      // Move to next file.
-      currentReader = new TarJsonStatusCorpusReader(files[nextFile]);
-      nextFile++;
+      return (Status) element;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 
   public void close() throws IOException {
-    currentReader.close();
+//    currentReader.close();
   }
 }
