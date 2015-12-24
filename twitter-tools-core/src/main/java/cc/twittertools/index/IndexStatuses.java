@@ -22,6 +22,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -33,24 +35,18 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
-import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
 import org.apache.tools.bzip2.CBZip2InputStream;
 
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
-import cc.twittertools.corpus.data.Status;
 import cc.twittertools.corpus.data.StatusStream;
 
 /**
@@ -93,6 +89,10 @@ public class IndexStatuses {
   private static final String DELETES_OPTION = "deletes";
   private static final String OPTIMIZE_OPTION = "optimize";
   private static final String STORE_TERM_VECTORS_OPTION = "store";
+  private static final String VERBOSE_OPTION = "verbose";
+  private static final String UPDATE_OPTION = "update";
+  private static final String PRINT_DPS_OPTION = "printDPS";
+  private static final String THREAD_COUNT_OPTION = "threadCount";
 
   @SuppressWarnings("static-access")
   public static void main(String[] args) throws Exception {
@@ -101,6 +101,9 @@ public class IndexStatuses {
     options.addOption(new Option(HELP_OPTION, "show help"));
     options.addOption(new Option(OPTIMIZE_OPTION, "merge indexes into a single segment"));
     options.addOption(new Option(STORE_TERM_VECTORS_OPTION, "store term vectors"));
+    options.addOption(new Option(VERBOSE_OPTION, "more verbose"));
+    options.addOption(new Option(UPDATE_OPTION, "update index"));
+    options.addOption(new Option(PRINT_DPS_OPTION, "print DPS"));
 
     options.addOption(OptionBuilder.withArgName("dir").hasArg()
         .withDescription("source collection directory").create(COLLECTION_OPTION));
@@ -110,6 +113,8 @@ public class IndexStatuses {
         .withDescription("file with deleted tweetids").create(DELETES_OPTION));
     options.addOption(OptionBuilder.withArgName("id").hasArg()
         .withDescription("max id").create(MAX_ID_OPTION));
+    options.addOption(OptionBuilder.withArgName("num").hasArg()
+            .withDescription("number of threads").create(THREAD_COUNT_OPTION));
 
     CommandLine cmdline = null;
     CommandLineParser parser = new GnuParser();
@@ -127,20 +132,26 @@ public class IndexStatuses {
       System.exit(-1);
     }
 
-    String collectionPath = cmdline.getOptionValue(COLLECTION_OPTION);
-    String indexPath = cmdline.getOptionValue(INDEX_OPTION);
+    String dataDir = cmdline.getOptionValue(COLLECTION_OPTION);
+    String dirPath = cmdline.getOptionValue(INDEX_OPTION);
+    boolean forceMerge = cmdline.hasOption(OPTIMIZE_OPTION);
+    boolean verbose = cmdline.hasOption(VERBOSE_OPTION);
+    boolean doUpdate = cmdline.hasOption(UPDATE_OPTION);
+    boolean printDPS = cmdline.hasOption(PRINT_DPS_OPTION);
+
+    int numThreads = 4;
+    if (cmdline.hasOption(THREAD_COUNT_OPTION)) {
+      numThreads = Integer.parseInt(cmdline.getOptionValue(THREAD_COUNT_OPTION));
+    }
 
     final FieldType textOptions = new FieldType();
     textOptions.setIndexed(true);
     textOptions.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
     textOptions.setStored(true);
-    textOptions.setTokenized(true);        
+    textOptions.setTokenized(true);
     if (cmdline.hasOption(STORE_TERM_VECTORS_OPTION)) {
       textOptions.setStoreTermVectors(true);
     }
-
-    LOG.info("collection: " + collectionPath);
-    LOG.info("index: " + indexPath);
 
     LongOpenHashSet deletes = null;
     if (cmdline.hasOption(DELETES_OPTION)) {
@@ -175,9 +186,10 @@ public class IndexStatuses {
       maxId = Long.parseLong(cmdline.getOptionValue(MAX_ID_OPTION));
       LOG.info("index: " + maxId);
     }
+
+    long docCountLimit = -1;
     
-    long startTime = System.currentTimeMillis();
-    File file = new File(collectionPath);
+    File file = new File(dataDir);
     if (!file.exists()) {
       System.err.println("Error: " + file + " does not exist!");
       System.exit(-1);
@@ -185,82 +197,78 @@ public class IndexStatuses {
 
     StatusStream stream = new JsonStatusCorpusReader(file);
 
-    Directory dir = FSDirectory.open(new File(indexPath));
-    IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_43, IndexStatuses.ANALYZER);
-    config.setOpenMode(OpenMode.CREATE);
+    final Directory dir = FSDirectory.open(new File(dirPath));
 
-    IndexWriter writer = new IndexWriter(dir, config);
-    int cnt = 0;
-    Status status;
-    try {
-      while ((status = stream.next()) != null) {
-        if (status.getText() == null) {
-          continue;
-        }
+    LOG.info("Index path: " + dirPath);
+    LOG.info("Threads: " + numThreads);
+    LOG.info("Verbose: " + (verbose ? "yes" : "no"));
+    LOG.info("Force merge: " + (forceMerge ? "yes" : "no"));
 
-        // Skip deletes tweetids.
-        if (deletes != null && deletes.contains(status.getId())) {
-          continue;
-        }
-
-        if (status.getId() > maxId) {
-          continue;
-        }
-
-        cnt++;
-        Document doc = new Document();
-        doc.add(new LongField(StatusField.ID.name, status.getId(), Field.Store.YES));
-        doc.add(new LongField(StatusField.EPOCH.name, status.getEpoch(), Field.Store.YES));
-        doc.add(new TextField(StatusField.SCREEN_NAME.name, status.getScreenname(), Store.YES));
-
-        doc.add(new Field(StatusField.TEXT.name, status.getText(), textOptions));
-
-        doc.add(new IntField(StatusField.FRIENDS_COUNT.name, status.getFollowersCount(), Store.YES));
-        doc.add(new IntField(StatusField.FOLLOWERS_COUNT.name, status.getFriendsCount(), Store.YES));
-        doc.add(new IntField(StatusField.STATUSES_COUNT.name, status.getStatusesCount(), Store.YES));
-
-        long inReplyToStatusId = status.getInReplyToStatusId();
-        if (inReplyToStatusId > 0) {
-          doc.add(new LongField(StatusField.IN_REPLY_TO_STATUS_ID.name, inReplyToStatusId, Field.Store.YES));
-          doc.add(new LongField(StatusField.IN_REPLY_TO_USER_ID.name, status.getInReplyToUserId(), Field.Store.YES));
-        }
-        
-        String lang = status.getLang();
-        if (!lang.equals("unknown")) {
-          doc.add(new TextField(StatusField.LANG.name, status.getLang(), Store.YES));
-        }
-        
-        long retweetStatusId = status.getRetweetedStatusId();
-        if (retweetStatusId > 0) {
-          doc.add(new LongField(StatusField.RETWEETED_STATUS_ID.name, retweetStatusId, Field.Store.YES));
-          doc.add(new LongField(StatusField.RETWEETED_USER_ID.name, status.getRetweetedUserId(), Field.Store.YES));
-          doc.add(new IntField(StatusField.RETWEET_COUNT.name, status.getRetweetCount(), Store.YES));
-          if ( status.getRetweetCount() < 0 || status.getRetweetedStatusId() < 0) {
-            LOG.warn("Error parsing retweet fields of " + status.getId());
-          }
-        }
-        
-        writer.addDocument(doc);
-        if (cnt % 100000 == 0) {
-          LOG.info(cnt + " statuses indexed");
-        }
-      }
-
-      LOG.info(String.format("Total of %s statuses added", cnt));
-      
-      if (cmdline.hasOption(OPTIMIZE_OPTION)) {
-        LOG.info("Merging segments...");
-        writer.forceMerge(1);
-        LOG.info("Done!");
-      }
-
-      LOG.info("Total elapsed time: " + (System.currentTimeMillis() - startTime) + "ms");
-    } catch (Exception e) {
-      e.printStackTrace();
-    } finally {
-      writer.close();
-      dir.close();
-      stream.close();
+    if (verbose) {
+      InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
+
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_43, IndexStatuses.ANALYZER);
+
+    if (doUpdate) {
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
+    } else {
+      iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    }
+    if (forceMerge) {
+      // TODO: Explore a merge policy that results in just one segment. NoMergePolicy seems
+      // to result in large number of files, but possibly one 1 segment.
+      //iwc.setMergePolicy(NoMergePolicy.INSTANCE);
+    }
+    LOG.info("IW config=" + iwc);
+
+    final IndexWriter w = new IndexWriter(dir, iwc);
+    IndexThreads threads = new IndexThreads(w, textOptions, stream, numThreads, -1, printDPS, maxId, deletes);
+    LOG.info("Indexer: start");
+
+    final long t0 = System.currentTimeMillis();
+
+    threads.start();
+
+    while (!threads.done()) {
+      Thread.sleep(100);
+    }
+    threads.stop();
+
+    final long t1 = System.currentTimeMillis();
+    LOG.info("Indexer: indexing done (" + (t1-t0)/1000.0 + " sec); total " + w.maxDoc() + " docs");
+    if (!doUpdate && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
+      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
+    }
+    if (threads.failed.get()) {
+      throw new RuntimeException("exceptions during indexing");
+    }
+
+
+    final long t2;
+    t2 = System.currentTimeMillis();
+
+    final Map<String,String> commitData = new HashMap<String,String>();
+    commitData.put("userData", "multi");
+    w.setCommitData(commitData);
+    w.commit();
+    final long t3 = System.currentTimeMillis();
+    LOG.info("Indexer: commit multi (took " + (t3-t2)/1000.0 + " sec)");
+
+
+    if (forceMerge) {
+      LOG.info("Starting the merge...");
+      long mergeStart = System.currentTimeMillis();
+      w.forceMerge(1);
+      w.commit();
+      LOG.info("Indexer: merging took " + (System.currentTimeMillis() - mergeStart)/1000.0 + " sec");
+    }
+    LOG.info("Indexer: at close: " + w.segString());
+    final long tCloseStart = System.currentTimeMillis();
+    w.close();
+    LOG.info("Indexer: close took " + (System.currentTimeMillis() - tCloseStart)/1000.0 + " sec");
+    dir.close();
+    final long tFinal = System.currentTimeMillis();
+    LOG.info("Indexer: finished (" + (tFinal-t0)/1000.0 + " sec)");
   }
 }
