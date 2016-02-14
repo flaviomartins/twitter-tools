@@ -165,22 +165,21 @@ public class Status {
       status.inReplyToUserId = -1L;
     }
 
+    // In Tweets2011 retweet_count exists but not the other retweet fields
     try {
-      status.retweetStatusId = obj.getAsJsonObject("retweeted_status").get("id").getAsLong();
-      status.retweetUserId = obj.getAsJsonObject("retweeted_status").get("user").getAsJsonObject().get("id").getAsLong();
       // retweet_count might say "100+"
       // TODO: This is ugly, come back and fix later.
       status.retweetCount = Integer.parseInt(obj.get("retweet_count").getAsString().replace("+", ""));
     } catch (Exception e) {
-      status.retweetStatusId = -1L;
-      status.retweetUserId = -1L;
       status.retweetCount = -1;
     }
 
     try {
-      status.inReplyToUserId = obj.get("in_reply_to_user_id").getAsLong();
+      status.retweetStatusId = obj.getAsJsonObject("retweeted_status").get("id").getAsLong();
+      status.retweetUserId = obj.getAsJsonObject("retweeted_status").get("user").getAsJsonObject().get("id").getAsLong();
     } catch (Exception e) {
-      status.inReplyToUserId = -1L;
+      status.retweetStatusId = -1L;
+      status.retweetUserId = -1L;
     }
 
     try {
@@ -197,9 +196,15 @@ public class Status {
       status.lang = "unknown";
     }
 
-    status.followersCount = obj.get("user").getAsJsonObject().get("followers_count").getAsInt();
-    status.friendsCount = obj.get("user").getAsJsonObject().get("friends_count").getAsInt();
-    status.statusesCount = obj.get("user").getAsJsonObject().get("statuses_count").getAsInt();
+    try {
+      status.followersCount = obj.get("user").getAsJsonObject().get("followers_count").getAsInt();
+      status.friendsCount = obj.get("user").getAsJsonObject().get("friends_count").getAsInt();
+      status.statusesCount = obj.get("user").getAsJsonObject().get("statuses_count").getAsInt();
+    } catch (Exception e) {
+      status.followersCount = -1;
+      status.friendsCount = -1;
+      status.statusesCount = -1;
+    }
 
 
     status.jsonObject = obj;

@@ -132,9 +132,14 @@ class IndexThreads {
 
       doc.add(new Field(IndexStatuses.StatusField.TEXT.name, status.getText(), textOptions));
 
-      doc.add(new IntField(IndexStatuses.StatusField.FRIENDS_COUNT.name, status.getFollowersCount(), Store.YES));
-      doc.add(new IntField(IndexStatuses.StatusField.FOLLOWERS_COUNT.name, status.getFriendsCount(), Store.YES));
-      doc.add(new IntField(IndexStatuses.StatusField.STATUSES_COUNT.name, status.getStatusesCount(), Store.YES));
+      int friendsCount = status.getFriendsCount();
+      int followersCount = status.getFollowersCount();
+      int statusesCount = status.getStatusesCount();
+      if (friendsCount > -1 || followersCount > -1 || statusesCount > -1) {
+        doc.add(new IntField(IndexStatuses.StatusField.FRIENDS_COUNT.name, status.getFriendsCount(), Store.YES));
+        doc.add(new IntField(IndexStatuses.StatusField.FOLLOWERS_COUNT.name, status.getFollowersCount(), Store.YES));
+        doc.add(new IntField(IndexStatuses.StatusField.STATUSES_COUNT.name, status.getStatusesCount(), Store.YES));
+      }
 
       long inReplyToStatusId = status.getInReplyToStatusId();
       if (inReplyToStatusId > 0) {
@@ -147,11 +152,16 @@ class IndexThreads {
         doc.add(new TextField(IndexStatuses.StatusField.LANG.name, status.getLang(), Store.YES));
       }
 
+      // In Tweets2011 retweet_count exists but not the other retweet fields
+      int retweetCount = status.getRetweetCount();
+      if (retweetCount > -1) {
+        doc.add(new IntField(IndexStatuses.StatusField.RETWEET_COUNT.name, retweetCount, Store.YES));
+      }
+
       long retweetStatusId = status.getRetweetedStatusId();
       if (retweetStatusId > 0) {
         doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_STATUS_ID.name, retweetStatusId, Field.Store.YES));
         doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_USER_ID.name, status.getRetweetedUserId(), Field.Store.YES));
-        doc.add(new IntField(IndexStatuses.StatusField.RETWEET_COUNT.name, status.getRetweetCount(), Store.YES));
         if (status.getRetweetCount() < 0 || status.getRetweetedStatusId() < 0) {
           LOG.warn("Error parsing retweet fields of " + status.getId());
         }
