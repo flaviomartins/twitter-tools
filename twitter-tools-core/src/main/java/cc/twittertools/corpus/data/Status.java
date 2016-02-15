@@ -178,8 +178,15 @@ public class Status {
       status.retweetStatusId = obj.getAsJsonObject("retweeted_status").get("id").getAsLong();
       status.retweetUserId = obj.getAsJsonObject("retweeted_status").get("user").getAsJsonObject().get("id").getAsLong();
     } catch (Exception e) {
-      status.retweetStatusId = -1L;
-      status.retweetUserId = -1L;
+      // In Tweets2011 requested_id contains the real id of the tweet
+      try {
+        long requestedId = obj.get("requested_id").getAsLong();
+        status.retweetStatusId = status.getId();
+        status.id = requestedId;
+      } catch (Exception e1) {
+        status.retweetStatusId = -1L;
+        status.retweetUserId = -1L;
+      }
     }
 
     try {
