@@ -19,6 +19,7 @@ package cc.twittertools.index;
 import cc.twittertools.corpus.data.TwitterstreamJsonStatusCorpusReader;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,6 +35,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.compress.compressors.CompressorInputStream;
+import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.FieldType;
@@ -46,7 +49,6 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
 import org.apache.lucene.util.Version;
-import org.apache.tools.bzip2.CBZip2InputStream;
 
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
 import cc.twittertools.corpus.data.StatusStream;
@@ -167,9 +169,9 @@ public class IndexStatuses {
       LOG.info("Reading deletes from " + deletesFile);
       
       FileInputStream fin = new FileInputStream(deletesFile);
-      byte[] ignoreBytes = new byte[2];
-      fin.read(ignoreBytes); // "B", "Z" bytes from commandline tools
-      BufferedReader br = new BufferedReader(new InputStreamReader(new CBZip2InputStream(fin)));
+      BufferedInputStream bis = new BufferedInputStream(fin);
+      CompressorInputStream input = new CompressorStreamFactory().createCompressorInputStream(bis);
+      BufferedReader br = new BufferedReader(new InputStreamReader(input));
 
       String s;
       while ((s = br.readLine()) != null) {
