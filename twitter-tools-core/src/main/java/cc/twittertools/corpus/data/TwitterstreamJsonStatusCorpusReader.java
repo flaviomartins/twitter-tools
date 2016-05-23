@@ -56,7 +56,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
       throw new IOException(file + " does not contain any .tar files!");
     }
 
-    blockingQueue = new ArrayBlockingQueue(10000);
+    blockingQueue = new ArrayBlockingQueue(100000);
 
     executor = Executors.newFixedThreadPool(numThreads);
     for (int i = 0; i < files.length; i++) {
