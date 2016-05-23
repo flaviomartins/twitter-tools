@@ -48,7 +48,7 @@ public class JsonStatusBlockReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException, TwitterException {
+  public Status next() throws IOException {
     Status nxt = null;
     String raw = null;
 
@@ -60,9 +60,12 @@ public class JsonStatusBlockReader implements StatusStream {
         return null;
       }
 
-      nxt = TwitterObjectFactory.createStatus(raw);
+      try {
+        nxt = TwitterObjectFactory.createStatus(raw);
+      } catch (TwitterException e) {
+      }
     }
-    return TwitterObjectFactory.createStatus(raw);
+    return nxt;
   }
 
   public void close() throws IOException {

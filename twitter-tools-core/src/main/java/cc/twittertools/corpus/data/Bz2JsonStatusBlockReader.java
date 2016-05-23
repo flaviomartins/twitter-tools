@@ -42,24 +42,24 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException, TwitterException {
+  public Status next() throws IOException {
     Status nxt = null;
     String raw = null;
 
     while (nxt == null) {
-      try {
-        raw = br.readLine();
-      } catch (IOException e) {
-      }
+      raw = br.readLine();
 
       // Check to see if we've reached end of file.
       if (raw == null) {
         return null;
       }
 
-      nxt = TwitterObjectFactory.createStatus(raw);
+      try {
+        nxt = TwitterObjectFactory.createStatus(raw);
+      } catch (TwitterException e) {
+      }
     }
-    return TwitterObjectFactory.createStatus(raw);
+    return nxt;
   }
 
   public void close() throws IOException {

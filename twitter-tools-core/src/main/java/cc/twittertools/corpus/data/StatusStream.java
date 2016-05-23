@@ -17,7 +17,6 @@
 package cc.twittertools.corpus.data;
 
 import twitter4j.Status;
-import twitter4j.TwitterException;
 
 import java.io.IOException;
 
@@ -25,6 +24,6 @@ import java.io.IOException;
  * Abstraction for a stream of statuses. Ordering of the statuses is left to the implementation.
  */
 public interface StatusStream {
-  Status next() throws IOException, TwitterException;
+  Status next() throws IOException;
   void close() throws IOException;
 }

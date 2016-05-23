@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import com.google.common.base.Preconditions;
 import twitter4j.Status;
-import twitter4j.TwitterException;
 
 /**
  * Abstraction for a corpus of statuses. A corpus is assumed to consist of a number of blocks, each
@@ -55,7 +54,7 @@ public class JsonStatusCorpusReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException, TwitterException {
+  public Status next() throws IOException {
     if (currentBlock == null) {
       currentBlock = new JsonStatusBlockReader(files[nextFile]);
       nextFile++;
