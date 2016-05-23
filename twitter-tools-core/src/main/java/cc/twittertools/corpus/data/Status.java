@@ -18,6 +18,8 @@ package cc.twittertools.corpus.data;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Locale;
+import java.util.TimeZone;
 
 import org.apache.log4j.Logger;
 
@@ -31,7 +33,7 @@ public class Status {
   private static final Logger LOG = Logger.getLogger(Status.class);
 
   private static final JsonParser JSON_PARSER = new JsonParser();
-  private static final String DATE_FORMAT = "EEE MMM d k:m:s ZZZZZ yyyy"; //"Fri Mar 29 11:03:41 +0000 2013"; 
+  private static final String DATE_FORMAT = "EEE MMM d HH:mm:ss z yyyy"; //"Fri Mar 29 11:03:41 +0000 2013";
   private long id;
   private String screenname;
   private String createdAt;
@@ -147,7 +149,9 @@ public class Status {
     status.createdAt = obj.get("created_at").getAsString();
 
     try {
-      status.epoch = (new SimpleDateFormat(DATE_FORMAT)).parse(status.createdAt).getTime() / 1000;
+      SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT, Locale.US);
+      sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+      status.epoch = sdf.parse(status.createdAt).getTime() / 1000L;
     } catch (ParseException e) {
       status.epoch = -1L;
     }
