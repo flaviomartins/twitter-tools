@@ -18,6 +18,9 @@ package cc.twittertools.corpus.data;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import twitter4j.Status;
+import twitter4j.TwitterException;
+import twitter4j.TwitterObjectFactory;
 
 import java.io.*;
 
@@ -39,7 +42,7 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException {
+  public Status next() throws IOException, TwitterException {
     Status nxt = null;
     String raw = null;
 
@@ -54,9 +57,9 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
         return null;
       }
 
-      nxt = Status.fromJson(raw);
+      nxt = TwitterObjectFactory.createStatus(raw);
     }
-    return Status.fromJson(raw);
+    return TwitterObjectFactory.createStatus(raw);
   }
 
   public void close() throws IOException {

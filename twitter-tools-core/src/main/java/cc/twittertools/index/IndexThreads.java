@@ -17,13 +17,12 @@ package cc.twittertools.index;
  * limitations under the License.
  */
 
-import cc.twittertools.corpus.data.Status;
 import cc.twittertools.corpus.data.StatusStream;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.*;
-import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexWriter;
+import twitter4j.Status;
 
 import java.io.IOException;
 import java.util.concurrent.*;
@@ -126,20 +125,16 @@ class IndexThreads {
 
     private Document getDocumentFromDocData(Status status) {
       Document doc = new Document();
-      doc.add(new LongField(IndexStatuses.StatusField.ID.name, status.getId(), Field.Store.YES));
-      doc.add(new LongField(IndexStatuses.StatusField.EPOCH.name, status.getEpoch(), Field.Store.YES));
-      doc.add(new TextField(IndexStatuses.StatusField.SCREEN_NAME.name, status.getScreenname(), Store.YES));
+      long id = status.getId();
+      doc.add(new LongField(IndexStatuses.StatusField.ID.name, id, Field.Store.YES));
+      doc.add(new LongField(IndexStatuses.StatusField.EPOCH.name, status.getCreatedAt().getTime() / 1000L, Field.Store.YES));
+      doc.add(new TextField(IndexStatuses.StatusField.SCREEN_NAME.name, status.getUser().getScreenName(), Field.Store.YES));
 
       doc.add(new Field(IndexStatuses.StatusField.TEXT.name, status.getText(), textOptions));
 
-      int friendsCount = status.getFriendsCount();
-      int followersCount = status.getFollowersCount();
-      int statusesCount = status.getStatusesCount();
-      if (friendsCount > -1 || followersCount > -1 || statusesCount > -1) {
-        doc.add(new IntField(IndexStatuses.StatusField.FRIENDS_COUNT.name, status.getFriendsCount(), Store.YES));
-        doc.add(new IntField(IndexStatuses.StatusField.FOLLOWERS_COUNT.name, status.getFollowersCount(), Store.YES));
-        doc.add(new IntField(IndexStatuses.StatusField.STATUSES_COUNT.name, status.getStatusesCount(), Store.YES));
-      }
+      doc.add(new IntField(IndexStatuses.StatusField.FRIENDS_COUNT.name, status.getUser().getFriendsCount(), Field.Store.YES));
+      doc.add(new IntField(IndexStatuses.StatusField.FOLLOWERS_COUNT.name, status.getUser().getFollowersCount(), Field.Store.YES));
+      doc.add(new IntField(IndexStatuses.StatusField.STATUSES_COUNT.name, status.getUser().getStatusesCount(), Field.Store.YES));
 
       long inReplyToStatusId = status.getInReplyToStatusId();
       if (inReplyToStatusId > 0) {
@@ -148,22 +143,23 @@ class IndexThreads {
       }
 
       String lang = status.getLang();
-      if (!lang.equals("unknown")) {
-        doc.add(new TextField(IndexStatuses.StatusField.LANG.name, status.getLang(), Store.YES));
+      if (lang != null && !"unknown".equals(lang)) {
+        doc.add(new TextField(IndexStatuses.StatusField.LANG.name, lang, Field.Store.YES));
       }
 
       // In Tweets2011 retweet_count exists but not the other retweet fields
       int retweetCount = status.getRetweetCount();
       if (retweetCount > -1) {
-        doc.add(new IntField(IndexStatuses.StatusField.RETWEET_COUNT.name, retweetCount, Store.YES));
+        doc.add(new IntField(IndexStatuses.StatusField.RETWEET_COUNT.name, retweetCount, Field.Store.YES));
       }
 
-      long retweetStatusId = status.getRetweetedStatusId();
-      if (retweetStatusId > 0) {
-        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_STATUS_ID.name, retweetStatusId, Field.Store.YES));
-        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_USER_ID.name, status.getRetweetedUserId(), Field.Store.YES));
-        if (status.getRetweetCount() < 0 || status.getRetweetedStatusId() < 0) {
-          LOG.warn("Error parsing retweet fields of " + status.getId());
+      Status retweetedStatus = status.getRetweetedStatus();
+      if (retweetedStatus != null) {
+        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_STATUS_ID.name, status.getRetweetedStatus().getId(), Field.Store.YES));
+        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_USER_ID.name, status.getRetweetedStatus().getUser().getId(), Field.Store.YES));
+
+        if (retweetCount < 0) {
+          LOG.warn("Error parsing retweet fields of " + id);
         }
       }
       return doc;
@@ -306,7 +302,7 @@ class IndexThreads {
         double currentDocs = numDocs - lastDocsCount;
         long now = System.currentTimeMillis();
         double seconds = (now - time) / 1000.0d;
-        LOG.info("ingest: " + (now - start) + " " + (int)(currentDocs / seconds) + " " + (int)(currentDocs / seconds) + " " + numProd + " " + numDocs);
+        LOG.info("ingest: " + (now - start) + " " + (int)(currentProd / seconds) + " " + (int)(currentDocs / seconds) + " " + numProd + " " + numDocs);
         time = now;
         lastProdCount = numProd;
         lastDocsCount = numDocs;

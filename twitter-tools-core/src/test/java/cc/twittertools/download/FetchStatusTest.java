@@ -10,12 +10,12 @@ import junit.framework.JUnit4TestAdapter;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.junit.Test;
 
-import cc.twittertools.corpus.data.Status;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
+import twitter4j.Status;
+import twitter4j.TwitterObjectFactory;
 
 public class FetchStatusTest {
   private static final JsonParser JSON_PARSER = new JsonParser();
@@ -55,9 +55,9 @@ public class FetchStatusTest {
     JsonObject page = (JsonObject) JSON_PARSER.parse(json);
     JsonObject statusJson = page.getAsJsonObject("embedData").getAsJsonObject("status");
 
-    Status status = Status.fromJson(statusJson.toString());
+    Status status = TwitterObjectFactory.createStatus(statusJson.toString());
     assertEquals(1121915133L, status.getId());
-    assertEquals("jkrums", status.getScreenname());
+    assertEquals("jkrums", status.getUser().getScreenName());
     assertEquals("http://twitpic.com/135xa - There's a plane in the Hudson. I'm on the ferry going to pick up the people. Crazy.", status.getText());
 
     asyncHttpClient.close();

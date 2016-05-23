@@ -30,8 +30,8 @@ import org.apache.log4j.Logger;
 
 import cc.twittertools.corpus.data.JsonStatusBlockReader;
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
-import cc.twittertools.corpus.data.Status;
 import cc.twittertools.corpus.data.StatusStream;
+import twitter4j.Status;
 
 /**
  * Sample program to illustrate how to work with {@link StatusStream}.
@@ -93,7 +93,7 @@ public class ReadStatuses {
           text = text.replaceAll("\\s+", " ");
           text = text.replaceAll("\0", "");
         }
-        out.println(String.format("%d\t%s\t%s\t%s", status.getId(), status.getScreenname(),
+        out.println(String.format("%d\t%s\t%s\t%s", status.getId(), status.getUser().getScreenName(),
             status.getCreatedAt(), text));
       }
       cnt++;

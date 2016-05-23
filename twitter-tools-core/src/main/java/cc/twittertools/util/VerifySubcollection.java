@@ -36,10 +36,11 @@ import org.apache.commons.cli.ParseException;
 import org.apache.log4j.Logger;
 
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
-import cc.twittertools.corpus.data.Status;
 import cc.twittertools.corpus.data.StatusStream;
 
 import com.google.common.collect.Maps;
+import twitter4j.Status;
+import twitter4j.TwitterObjectFactory;
 
 public class VerifySubcollection {
   private static final Logger LOG = Logger.getLogger(VerifySubcollection.class);
@@ -115,7 +116,7 @@ public class VerifySubcollection {
         continue;
       }
 
-      tweets.put(status.getId(), status.getJsonObject().toString());
+      tweets.put(status.getId(), TwitterObjectFactory.getRawJSON(status));
       seen.add(status.getId());
       cnt++;
     }

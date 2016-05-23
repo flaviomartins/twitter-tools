@@ -17,6 +17,7 @@
 package cc.twittertools.corpus.data;
 
 import com.google.common.base.Preconditions;
+import twitter4j.Status;
 
 import java.io.File;
 import java.io.FileFilter;

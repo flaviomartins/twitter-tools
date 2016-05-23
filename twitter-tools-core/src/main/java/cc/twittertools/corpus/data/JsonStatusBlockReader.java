@@ -24,6 +24,9 @@ import java.io.InputStreamReader;
 import java.util.zip.GZIPInputStream;
 
 import com.google.common.base.Preconditions;
+import twitter4j.Status;
+import twitter4j.TwitterException;
+import twitter4j.TwitterObjectFactory;
 
 /**
  * Abstraction for an stream of statuses, backed by an underlying gzipped file with JSON-encoded
@@ -45,7 +48,7 @@ public class JsonStatusBlockReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException {
+  public Status next() throws IOException, TwitterException {
     Status nxt = null;
     String raw = null;
 
@@ -57,9 +60,9 @@ public class JsonStatusBlockReader implements StatusStream {
         return null;
       }
 
-      nxt = Status.fromJson(raw);
+      nxt = TwitterObjectFactory.createStatus(raw);
     }
-    return Status.fromJson(raw);
+    return TwitterObjectFactory.createStatus(raw);
   }
 
   public void close() throws IOException {

@@ -27,8 +27,8 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
-import cc.twittertools.corpus.data.Status;
 import cc.twittertools.corpus.data.StatusStream;
+import twitter4j.Status;
 
 public class ExtractTweetidsFromCollection {
   private static final String COLLECTION_OPTION = "collection";
@@ -67,7 +67,7 @@ public class ExtractTweetidsFromCollection {
 
     Status status;
     while ((status = stream.next()) != null) {
-      System.out.println(status.getId() + "\t" + status.getScreenname());
+      System.out.println(status.getId() + "\t" + status.getUser().getScreenName());
     }
   }
 }

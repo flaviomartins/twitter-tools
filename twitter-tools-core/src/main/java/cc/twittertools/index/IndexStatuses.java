@@ -40,6 +40,7 @@ import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.InfoStream;
@@ -57,11 +58,10 @@ public class IndexStatuses {
   private static final Logger LOG = Logger.getLogger(IndexStatuses.class);
 
   public static final Analyzer ANALYZER = new TweetAnalyzer(Version.LUCENE_43);
-  public static String corpusFormat = null;
 
   private IndexStatuses() {}
 
-  public static enum StatusField {
+  public enum StatusField {
     ID("id"),
     SCREEN_NAME("screen_name"),
     EPOCH("epoch"),
@@ -81,7 +81,7 @@ public class IndexStatuses {
     StatusField(String s) {
       name = s;
     }
-  };
+  }
 
   private static final String HELP_OPTION = "h";
   private static final String COLLECTION_OPTION = "collection";
@@ -218,6 +218,8 @@ public class IndexStatuses {
     }
 
     final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_43, IndexStatuses.ANALYZER);
+    // More RAM before flushing means Lucene writes larger segments to begin with which means less merging later.
+    iwc.setRAMBufferSizeMB(48);
 
     if (doUpdate) {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
@@ -225,9 +227,7 @@ public class IndexStatuses {
       iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
     }
     if (forceMerge) {
-      // TODO: Explore a merge policy that results in just one segment. NoMergePolicy seems
-      // to result in large number of files, but possibly one 1 segment.
-      //iwc.setMergePolicy(NoMergePolicy.INSTANCE);
+      iwc.setMergePolicy(new TieredMergePolicy());
     }
     LOG.info("IW config=" + iwc);
 

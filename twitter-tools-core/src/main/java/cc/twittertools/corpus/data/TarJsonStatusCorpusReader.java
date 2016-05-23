@@ -19,6 +19,8 @@ package cc.twittertools.corpus.data;
 import com.google.common.base.Preconditions;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import twitter4j.Status;
+import twitter4j.TwitterException;
 
 import java.io.*;
 
@@ -44,7 +46,7 @@ public class TarJsonStatusCorpusReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException {
+  public Status next() throws IOException, TwitterException {
     if (currentBlock == null) {
       // Move to next file.
       TarArchiveEntry entry = tarInput.getNextTarEntry();

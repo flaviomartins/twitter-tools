@@ -34,8 +34,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.log4j.Logger;
 
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
-import cc.twittertools.corpus.data.Status;
 import cc.twittertools.corpus.data.StatusStream;
+import twitter4j.Status;
+import twitter4j.TwitterObjectFactory;
 
 public class ExtractSubcollection {
   private static final Logger LOG = Logger.getLogger(ExtractSubcollection.class);
@@ -99,7 +100,7 @@ public class ExtractSubcollection {
     Status status;
     while ((status = stream.next()) != null) {
       if (tweetids.contains(status.getId())) {
-        out.println(status.getJsonObject().toString());
+        out.println(TwitterObjectFactory.getRawJSON(status));
       }
     }
     stream.close();
