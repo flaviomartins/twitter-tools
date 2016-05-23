@@ -155,12 +155,8 @@ class IndexThreads {
 
       Status retweetedStatus = status.getRetweetedStatus();
       if (retweetedStatus != null) {
-        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_STATUS_ID.name, status.getRetweetedStatus().getId(), Field.Store.YES));
-        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_USER_ID.name, status.getRetweetedStatus().getUser().getId(), Field.Store.YES));
-
-        if (retweetCount < 0) {
-          LOG.warn("Error parsing retweet fields of " + id);
-        }
+        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_STATUS_ID.name, retweetedStatus.getId(), Field.Store.YES));
+        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_USER_ID.name, retweetedStatus.getUser().getId(), Field.Store.YES));
       }
       return doc;
     }
