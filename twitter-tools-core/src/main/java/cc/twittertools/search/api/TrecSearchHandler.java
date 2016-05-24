@@ -16,7 +16,6 @@
 
 package cc.twittertools.search.api;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +24,6 @@ import javax.annotation.Nullable;
 
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
@@ -34,8 +31,6 @@ import org.apache.lucene.search.NumericRangeFilter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.similarities.LMDirichletSimilarity;
-import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
 import cc.twittertools.index.IndexStatuses;
@@ -57,17 +52,13 @@ public class TrecSearchHandler implements TrecSearch.Iface {
   private final IndexSearcher searcher;
   private final Map<String, String> credentials;
 
-  public TrecSearchHandler(File indexPath, @Nullable Map<String, String> credentials)
+  public TrecSearchHandler(IndexSearcher searcher, @Nullable Map<String, String> credentials)
       throws IOException {
-    Preconditions.checkNotNull(indexPath);
-    Preconditions.checkArgument(indexPath.exists());
+    Preconditions.checkNotNull(searcher);
+    this.searcher = searcher;
 
     // Can be null, in which case we don't check for credentials.
     this.credentials = credentials;
-
-    IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath));
-    searcher = new IndexSearcher(reader);
-    searcher.setSimilarity(new LMDirichletSimilarity(2500.0f));
   }
 
   public List<TResult> search(TQuery query) throws TrecSearchException {

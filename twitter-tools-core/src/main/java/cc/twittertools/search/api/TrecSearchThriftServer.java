@@ -27,6 +27,11 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.similarities.LMDirichletSimilarity;
+import org.apache.lucene.store.FSDirectory;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
@@ -108,9 +113,13 @@ public class TrecSearchThriftServer {
       System.exit(-1);
     }
 
+    IndexReader reader = DirectoryReader.open(FSDirectory.open(index));
+    IndexSearcher searcher = new IndexSearcher(reader);
+    searcher.setSimilarity(new LMDirichletSimilarity(2500.0f));
+
     TServerSocket serverSocket = new TServerSocket(port);
     TrecSearch.Processor<TrecSearch.Iface> searchProcessor =
-        new TrecSearch.Processor<TrecSearch.Iface>(new TrecSearchHandler(index, credentials));
+        new TrecSearch.Processor<TrecSearch.Iface>(new TrecSearchHandler(searcher, credentials));
     
     TThreadPoolServer.Args serverArgs = new TThreadPoolServer.Args(serverSocket);
     serverArgs.maxWorkerThreads(maxThreads);
