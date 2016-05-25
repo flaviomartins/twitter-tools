@@ -31,7 +31,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
-import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.MMapDirectory;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
@@ -113,7 +113,7 @@ public class TrecSearchThriftServer {
       System.exit(-1);
     }
 
-    IndexReader reader = DirectoryReader.open(NIOFSDirectory.open(index));
+    IndexReader reader = DirectoryReader.open(MMapDirectory.open(index));
     IndexSearcher searcher = new IndexSearcher(reader);
     searcher.setSimilarity(new LMDirichletSimilarity(2500.0f));
 
