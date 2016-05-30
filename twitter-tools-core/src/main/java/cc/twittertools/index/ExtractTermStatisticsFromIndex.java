@@ -74,6 +74,7 @@ public class ExtractTermStatisticsFromIndex {
     Terms terms = SlowCompositeReaderWrapper.wrap(reader).terms(StatusField.TEXT.name);
     TermsEnum termsEnum = terms.iterator(TermsEnum.EMPTY);
 
+    long totalTerms = 0;
     long missingCnt = 0;
     int skippedTerms = 0;
     BytesRef bytes = new BytesRef();
@@ -84,6 +85,7 @@ public class ExtractTermStatisticsFromIndex {
       int df = termsEnum.docFreq();
       long cf = termsEnum.totalTermFreq();
 
+      totalTerms++;
       if ( df < min) {
         skippedTerms++;
         missingCnt += cf;
@@ -95,6 +97,6 @@ public class ExtractTermStatisticsFromIndex {
 
     reader.close();
     out.close();
-    System.err.println("skipped terms: " + skippedTerms + ", cnt: " + missingCnt);
+    System.err.println("total terms: " + totalTerms +  " skipped terms: " + skippedTerms + ", cnt: " + missingCnt);
   }
 }
