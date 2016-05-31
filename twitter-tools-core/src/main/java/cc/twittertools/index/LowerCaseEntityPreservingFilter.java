@@ -146,6 +146,11 @@ public final class LowerCaseEntityPreservingFilter extends TokenFilter {
     }
 
     removeNonAlphanumeric();
+
+    // TODO: fix position increment?
+    if (termAtt.length() == 0) {
+      return incrementToken();
+    }
     return true;
   }
 

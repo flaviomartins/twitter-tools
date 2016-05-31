@@ -22,6 +22,7 @@ import com.google.common.base.CharMatcher;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.en.EnglishPossessiveFilter;
 import org.apache.lucene.analysis.en.PorterStemFilter;
 import org.apache.lucene.analysis.util.CharTokenizer;
 import org.apache.lucene.util.Version;
@@ -49,7 +50,8 @@ public final class TweetAnalyzer extends Analyzer {
         return !CharMatcher.WHITESPACE.matches((char)c);
       }
     };
-    TokenStream filter = new LowerCaseEntityPreservingFilter(source);
+    TokenStream filter = new EnglishPossessiveFilter(matchVersion, source);
+    filter = new LowerCaseEntityPreservingFilter(filter);
 
     if (stemming) {
       // Porter stemmer ignores words which are marked as keywords
