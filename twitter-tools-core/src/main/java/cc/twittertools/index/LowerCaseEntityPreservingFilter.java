@@ -157,6 +157,7 @@ public final class LowerCaseEntityPreservingFilter extends TokenFilter {
   /**
    * Remove all non-alphanumeric characters from the buffer
    */
+  @SuppressWarnings("AssignmentToForLoopParameter")
   public void removeNonAlphanumeric() {
     final char[] buffer = termAtt.buffer();
     // Remove any remaining non-alphanumeric characters
@@ -174,7 +175,7 @@ public final class LowerCaseEntityPreservingFilter extends TokenFilter {
   /**
    * Check if the given string is a valid entity (mention, hashtag or URL)
    */
-  public int isEntity(String term) {
+  public static int isEntity(String term) {
     if (Regex.VALID_URL.matcher(term).matches())
       return VALID_URL;
     else if (Regex.VALID_MENTION_OR_LIST.matcher(term).matches())
