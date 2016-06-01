@@ -59,7 +59,7 @@ import cc.twittertools.corpus.data.StatusStream;
 public class IndexStatuses {
   private static final Logger LOG = Logger.getLogger(IndexStatuses.class);
 
-  public static final Analyzer ANALYZER = new TweetAnalyzer(Version.LUCENE_43);
+  public static final Analyzer ANALYZER = new TweetAnalyzer();
 
   private IndexStatuses() {}
 
@@ -219,7 +219,7 @@ public class IndexStatuses {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_43, IndexStatuses.ANALYZER);
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LATEST, IndexStatuses.ANALYZER);
     // More RAM before flushing means Lucene writes larger segments to begin with which means less merging later.
     iwc.setRAMBufferSizeMB(48);
 

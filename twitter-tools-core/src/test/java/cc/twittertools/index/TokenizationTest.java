@@ -9,9 +9,9 @@ import junit.framework.TestCase;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.util.Version;
 
 import com.google.common.collect.Lists;
+import org.apache.lucene.analysis.util.CharArraySet;
 import org.junit.Assert;
 
 public class TokenizationTest extends TestCase {
@@ -68,7 +68,7 @@ public class TokenizationTest extends TestCase {
   };
 
   public void testTokenizer() throws Exception {
-    Analyzer analyzer = new TweetAnalyzer(Version.LUCENE_43);
+    Analyzer analyzer = new TweetAnalyzer(CharArraySet.EMPTY_SET);
 
     for (int i = 0; i < examples.length; i++) {
       Assert.assertEquals(
