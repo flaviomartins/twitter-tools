@@ -71,6 +71,12 @@ public class ExtractTermStatisticsFromIndex {
     PrintStream out = new PrintStream(System.out, true, "UTF-8");
 
     IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(indexLocation)));
+
+    long sumDocFreq = reader.getSumDocFreq(StatusField.TEXT.name);
+    long sumTotalTermFreq = reader.getSumTotalTermFreq(StatusField.TEXT.name);
+
+    out.println("\t" + sumDocFreq + "\t" + sumTotalTermFreq);
+
     Terms terms = SlowCompositeReaderWrapper.wrap(reader).terms(StatusField.TEXT.name);
     TermsEnum termsEnum = terms.iterator(TermsEnum.EMPTY);
 
