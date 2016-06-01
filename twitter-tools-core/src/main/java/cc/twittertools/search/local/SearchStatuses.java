@@ -40,7 +40,6 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Version;
 
 import cc.twittertools.index.IndexStatuses;
 import cc.twittertools.index.IndexStatuses.StatusField;
@@ -135,7 +134,7 @@ public class SearchStatuses {
       searcher.setSimilarity(new LMDirichletSimilarity(2500.0f));
     }
 
-    QueryParser p = new QueryParser(Version.LUCENE_43, IndexStatuses.StatusField.TEXT.name, IndexStatuses.ANALYZER);
+    QueryParser p = new QueryParser(IndexStatuses.StatusField.TEXT.name, IndexStatuses.ANALYZER);
     Query query = p.parse(queryText);
     Filter filter = NumericRangeFilter.newLongRange(StatusField.ID.name, 0L, maxId, true, true);
 

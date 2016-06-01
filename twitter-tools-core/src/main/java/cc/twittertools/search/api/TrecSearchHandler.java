@@ -31,7 +31,6 @@ import org.apache.lucene.search.NumericRangeFilter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.util.Version;
 
 import cc.twittertools.index.IndexStatuses;
 import cc.twittertools.index.IndexStatuses.StatusField;
@@ -47,7 +46,7 @@ public class TrecSearchHandler implements TrecSearch.Iface {
   private static final Logger LOG = Logger.getLogger(TrecSearchHandler.class);
 
   private static QueryParser QUERY_PARSER =
-      new QueryParser(Version.LUCENE_43, StatusField.TEXT.name, IndexStatuses.ANALYZER);
+      new QueryParser(StatusField.TEXT.name, IndexStatuses.ANALYZER);
 
   private final IndexSearcher searcher;
   private final Map<String, String> credentials;
