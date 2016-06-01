@@ -59,8 +59,8 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
     blockingQueue = new ArrayBlockingQueue(100000);
 
     executor = Executors.newFixedThreadPool(numThreads);
-    for (int i = 0; i < files.length; i++) {
-      Runnable worker = new TarReaderThread(files[i], blockingQueue);
+    for (File tarFile : files) {
+      Runnable worker = new TarReaderThread(tarFile, blockingQueue);
       executor.execute(worker);
     }
     executor.shutdown();
@@ -78,7 +78,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
     }).start();
   }
 
-  class TarReaderThread implements Runnable {
+  static class TarReaderThread implements Runnable {
 
     private final File file;
     private final BlockingQueue blockingQueue;
@@ -94,7 +94,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
       try {
         currentReader = new TarJsonStatusCorpusReader(file);
 
-        Status status = null;
+        Status status;
         while ((status = currentReader.next()) != null) {
           blockingQueue.put(status);
         }
