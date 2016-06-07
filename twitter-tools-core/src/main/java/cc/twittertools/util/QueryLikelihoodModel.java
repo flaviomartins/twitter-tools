@@ -21,12 +21,12 @@ public class QueryLikelihoodModel {
   private IndexReader reader;
   private final float mu;
 
-  public QueryLikelihoodModel(IndexReader reader, float mu) throws IOException {
+  public QueryLikelihoodModel(IndexReader reader, float mu) {
     this.reader = reader;
     this.mu = mu;
   }
 
-  public QueryLikelihoodModel(IndexReader reader) throws IOException {
+  public QueryLikelihoodModel(IndexReader reader) {
     this(reader, 2500);
   }
 

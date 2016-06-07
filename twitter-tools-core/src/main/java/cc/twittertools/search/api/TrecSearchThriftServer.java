@@ -47,6 +47,7 @@ import com.google.common.io.Files;
 public class TrecSearchThriftServer {
   private static final int DEFAULT_PORT = 9090;
   private static final int DEFAULT_MAX_THREADS = 8;
+  private static final float DEFAULT_MU = 2500.0f;
 
   private static final String HELP_OPTION = "h";
   private static final String INDEX_OPTION = "index";
@@ -116,9 +117,9 @@ public class TrecSearchThriftServer {
 
     IndexReader reader = DirectoryReader.open(MMapDirectory.open(index));
     IndexSearcher searcher = new IndexSearcher(reader);
-    searcher.setSimilarity(new LMDirichletSimilarity(2500.0f));
+    searcher.setSimilarity(new LMDirichletSimilarity(DEFAULT_MU));
 
-    QueryLikelihoodModel qlModel = new QueryLikelihoodModel(reader);
+    QueryLikelihoodModel qlModel = new QueryLikelihoodModel(reader, DEFAULT_MU);
 
     TServerSocket serverSocket = new TServerSocket(port);
     TrecSearch.Processor<TrecSearch.Iface> searchProcessor =
