@@ -39,6 +39,7 @@ public class QueryLikelihoodModel {
     stream.reset();
     stream.incrementToken();
     String stemTerm = charTermAttribute.toString();
+    stream.close();
     return stemTerm;
   }
 
