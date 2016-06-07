@@ -17,6 +17,8 @@
 package cc.twittertools.search.api;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +40,7 @@ import cc.twittertools.thrift.gen.TQuery;
 import cc.twittertools.thrift.gen.TResult;
 import cc.twittertools.thrift.gen.TrecSearch;
 import cc.twittertools.thrift.gen.TrecSearchException;
+import cc.twittertools.util.QueryLikelihoodModel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -49,12 +52,14 @@ public class TrecSearchHandler implements TrecSearch.Iface {
       new QueryParser(StatusField.TEXT.name, IndexStatuses.ANALYZER);
 
   private final IndexSearcher searcher;
+  private final QueryLikelihoodModel qlModel;
   private final Map<String, String> credentials;
 
-  public TrecSearchHandler(IndexSearcher searcher, @Nullable Map<String, String> credentials)
+  public TrecSearchHandler(IndexSearcher searcher, QueryLikelihoodModel qlModel, @Nullable Map<String, String> credentials)
       throws IOException {
     Preconditions.checkNotNull(searcher);
     this.searcher = searcher;
+    this.qlModel = qlModel;
 
     // Can be null, in which case we don't check for credentials.
     this.credentials = credentials;
@@ -80,6 +85,7 @@ public class TrecSearchHandler implements TrecSearch.Iface {
           NumericRangeFilter.newLongRange(StatusField.ID.name, 0L, query.max_id, true, true);
 
       Query q = QUERY_PARSER.parse(query.text);
+      Map<String, Float> weights = qlModel.parseQuery(query.text);
       int num = query.num_results > 10000 ? 10000 : query.num_results;
       TopDocs rs = searcher.search(q, filter, num);
       for (ScoreDoc scoreDoc : rs.scoreDocs) {
@@ -90,7 +96,11 @@ public class TrecSearchHandler implements TrecSearch.Iface {
         p.screen_name = hit.get(StatusField.SCREEN_NAME.name);
         p.epoch = (Long) hit.getField(StatusField.EPOCH.name).numericValue();
         p.text = hit.get(StatusField.TEXT.name);
-        p.rsv = scoreDoc.score;
+        if (query.ql) {
+          p.rsv = qlModel.computeQLScore(weights, p.text);
+        } else {
+          p.rsv = scoreDoc.score;
+        }
 
         p.followers_count = (Integer) hit.getField(StatusField.FOLLOWERS_COUNT.name).numericValue();
         p.statuses_count = (Integer) hit.getField(StatusField.STATUSES_COUNT.name).numericValue();
@@ -126,9 +136,22 @@ public class TrecSearchHandler implements TrecSearch.Iface {
       throw new TrecSearchException(e.getMessage());
     }
 
+    if (query.ql) {
+      Comparator<TResult> comparator = new TResultComparator();
+      Collections.sort(results, comparator);
+    }
+
     long endTime = System.currentTimeMillis();
     LOG.info(String.format("%4dms %s", (endTime - startTime), query.toString()));
 
     return results;
+  }
+
+  private static class TResultComparator implements Comparator<TResult> {
+    @Override
+    public int compare(TResult t1, TResult t2) {
+      double diff = t1.rsv - t2.rsv;
+      return (diff == 0) ? 0 : (diff > 0) ? -1 : 1;
+    }
   }
 }

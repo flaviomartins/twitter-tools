@@ -19,6 +19,7 @@ package cc.twittertools.search.api;
 import java.io.File;
 import java.util.Map;
 
+import cc.twittertools.util.QueryLikelihoodModel;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -117,9 +118,11 @@ public class TrecSearchThriftServer {
     IndexSearcher searcher = new IndexSearcher(reader);
     searcher.setSimilarity(new LMDirichletSimilarity(2500.0f));
 
+    QueryLikelihoodModel qlModel = new QueryLikelihoodModel(reader);
+
     TServerSocket serverSocket = new TServerSocket(port);
     TrecSearch.Processor<TrecSearch.Iface> searchProcessor =
-        new TrecSearch.Processor<TrecSearch.Iface>(new TrecSearchHandler(searcher, credentials));
+        new TrecSearch.Processor<TrecSearch.Iface>(new TrecSearchHandler(searcher, qlModel, credentials));
     
     TThreadPoolServer.Args serverArgs = new TThreadPoolServer.Args(serverSocket);
     serverArgs.maxWorkerThreads(maxThreads);
