@@ -18,16 +18,14 @@ public class QueryLikelihoodModel {
   private static final String FIELD = IndexStatuses.StatusField.TEXT.name;
   private static final Analyzer ANALYZER = IndexStatuses.ANALYZER;
 
-  private IndexReader reader;
   private final float mu;
 
-  public QueryLikelihoodModel(IndexReader reader, float mu) {
-    this.reader = reader;
+  public QueryLikelihoodModel(float mu) {
     this.mu = mu;
   }
 
-  public QueryLikelihoodModel(IndexReader reader) {
-    this(reader, 2500);
+  public QueryLikelihoodModel() {
+    this(2500);
   }
 
   //tokenize a term using TweetAnalyzer(stem=true)
@@ -71,7 +69,7 @@ public class QueryLikelihoodModel {
     return weights;
   }
   
-  public double computeQLScore(Map<String, Float> queryWeights, String doc) throws IOException {
+  public double computeQLScore(IndexReader reader, Map<String, Float> queryWeights, String doc) throws IOException {
     double score = 0;
     List<String> docTerms = tokenize(ANALYZER, doc);
     //System.out.println("doc:"+docTerms.toString());

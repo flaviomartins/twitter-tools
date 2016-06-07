@@ -97,7 +97,7 @@ public class TrecSearchHandler implements TrecSearch.Iface {
         p.epoch = (Long) hit.getField(StatusField.EPOCH.name).numericValue();
         p.text = hit.get(StatusField.TEXT.name);
         if (query.ql) {
-          p.rsv = qlModel.computeQLScore(weights, p.text);
+          p.rsv = qlModel.computeQLScore(searcher.getIndexReader(), weights, p.text);
         } else {
           p.rsv = scoreDoc.score;
         }

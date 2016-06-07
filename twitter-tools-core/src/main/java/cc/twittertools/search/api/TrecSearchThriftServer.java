@@ -119,7 +119,7 @@ public class TrecSearchThriftServer {
     IndexSearcher searcher = new IndexSearcher(reader);
     searcher.setSimilarity(new LMDirichletSimilarity(DEFAULT_MU));
 
-    QueryLikelihoodModel qlModel = new QueryLikelihoodModel(reader, DEFAULT_MU);
+    QueryLikelihoodModel qlModel = new QueryLikelihoodModel(DEFAULT_MU);
 
     TServerSocket serverSocket = new TServerSocket(port);
     TrecSearch.Processor<TrecSearch.Iface> searchProcessor =
