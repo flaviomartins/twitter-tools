@@ -17,13 +17,11 @@
 package cc.twittertools.search.api;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.annotation.Nullable;
 
+import cc.twittertools.util.AnalyzerUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -85,7 +83,7 @@ public class TrecSearchHandler implements TrecSearch.Iface {
           NumericRangeFilter.newLongRange(StatusField.ID.name, 0L, query.max_id, true, true);
 
       Query q = QUERY_PARSER.parse(query.text);
-      Map<String, Float> weights = qlModel.parseQuery(query.text);
+      Map<String, Float> weights = qlModel.parseQuery(IndexStatuses.ANALYZER, query.text);
       int num = query.num_results > 10000 ? 10000 : query.num_results;
       TopDocs rs = searcher.search(q, filter, num);
       for (ScoreDoc scoreDoc : rs.scoreDocs) {
@@ -97,7 +95,18 @@ public class TrecSearchHandler implements TrecSearch.Iface {
         p.epoch = (Long) hit.getField(StatusField.EPOCH.name).numericValue();
         p.text = hit.get(StatusField.TEXT.name);
         if (query.ql) {
-          p.rsv = qlModel.computeQLScore(searcher.getIndexReader(), weights, p.text);
+          List<String> docTerms = AnalyzerUtils.analyze(IndexStatuses.ANALYZER, p.text);
+          //System.out.println("doc:"+docTerms.toString());
+
+          Map<String, Integer> docTermCountMap = new HashMap<String, Integer>();
+          for (String term: docTerms) {
+            if (docTermCountMap.containsKey(term)) {
+              docTermCountMap.put(term, docTermCountMap.get(term)+1);
+            } else {
+              docTermCountMap.put(term, 1);
+            }
+          }
+          p.rsv = qlModel.computeQLScore(searcher.getIndexReader(), StatusField.TEXT.name, weights, docTermCountMap);
         } else {
           p.rsv = scoreDoc.score;
         }
