@@ -24,6 +24,8 @@ import javax.annotation.Nullable;
 import cc.twittertools.util.AnalyzerUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.IndexSearcher;
@@ -83,7 +85,21 @@ public class TrecSearchHandler implements TrecSearch.Iface {
           NumericRangeFilter.newLongRange(StatusField.ID.name, 0L, query.max_id, true, true);
 
       Query q = QUERY_PARSER.parse(query.text);
-      Map<String, Float> weights = qlModel.parseQuery(IndexStatuses.ANALYZER, query.text);
+      Map<String, Float> weights = null;
+      HashMap<String, Long> ctfs = null;
+      long sumTotalTermFreq = -1;
+      if (query.ql) {
+        IndexReader reader = searcher.getIndexReader();
+        weights = qlModel.parseQuery(IndexStatuses.ANALYZER, query.text);
+        ctfs = new HashMap<String, Long>();
+        for(String queryTerm: weights.keySet()) {
+          Term term = new Term(IndexStatuses.StatusField.TEXT.name, queryTerm);
+          long ctf = reader.totalTermFreq(term);
+          ctfs.put(queryTerm, ctf);
+        }
+        sumTotalTermFreq = reader.getSumTotalTermFreq(IndexStatuses.StatusField.TEXT.name);
+      }
+
       int num = query.num_results > 10000 ? 10000 : query.num_results;
       TopDocs rs = searcher.search(q, filter, num);
       for (ScoreDoc scoreDoc : rs.scoreDocs) {
@@ -98,15 +114,15 @@ public class TrecSearchHandler implements TrecSearch.Iface {
           List<String> docTerms = AnalyzerUtils.analyze(IndexStatuses.ANALYZER, p.text);
           //System.out.println("doc:"+docTerms.toString());
 
-          Map<String, Integer> docTermCountMap = new HashMap<String, Integer>();
-          for (String term: docTerms) {
-            if (docTermCountMap.containsKey(term)) {
-              docTermCountMap.put(term, docTermCountMap.get(term)+1);
-            } else {
-              docTermCountMap.put(term, 1);
+          Map<String, Integer> docVector = new HashMap<String, Integer>();
+          for (String t : docTerms) {
+            if (!t.isEmpty()) {
+              Integer n = docVector.get(t);
+              n = (n == null) ? 1 : ++n;
+              docVector.put(t, n);
             }
           }
-          p.rsv = qlModel.computeQLScore(searcher.getIndexReader(), StatusField.TEXT.name, weights, docTermCountMap);
+          p.rsv = qlModel.computeQLScore(weights, ctfs, docVector, sumTotalTermFreq);
         } else {
           p.rsv = scoreDoc.score;
         }

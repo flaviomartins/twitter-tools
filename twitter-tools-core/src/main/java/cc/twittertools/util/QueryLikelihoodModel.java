@@ -5,8 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
 
 public class QueryLikelihoodModel {
 
@@ -48,7 +46,7 @@ public class QueryLikelihoodModel {
     return weights;
   }
   
-  public double computeQLScore(IndexReader reader, String field, Map<String, Float> weights, Map<String, Integer> docVector) throws IOException {
+  public double computeQLScore(Map<String, Float> weights, Map<String, Long> ctfs, Map<String, Integer> docVector, long sumTotalTermFreq) throws IOException {
     int docLen = 0;
     for (Integer i : docVector.values()) {
       docLen += Math.abs(i);
@@ -57,12 +55,10 @@ public class QueryLikelihoodModel {
     double score = 0;
     for(String queryTerm: weights.keySet()) {
       float weight = weights.get(queryTerm);
-      Term term = new Term(field, queryTerm);
-      long ctf = reader.totalTermFreq(term);
+      long ctf = ctfs.get(queryTerm);
       if (ctf == 0) continue;
       int tf = docVector.containsKey(queryTerm) ? docVector.get(queryTerm) : 0;
-      score += weight * Math.log((tf + mu*((double)ctf/reader.getSumTotalTermFreq(field)))
-          / (docLen + mu));
+      score += weight * Math.log((tf + mu*((double)ctf/sumTotalTermFreq)) / (docLen + mu));
       //System.out.println("term: " + queryTerm + " freq in doc: " + tf
       //    + " freq in corpus: " + ctf);
     }
