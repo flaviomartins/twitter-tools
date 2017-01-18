@@ -22,6 +22,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import twitter4j.Status;
 
 import java.io.*;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Abstraction for a corpus of statuses. A corpus is assumed to consist of a number of blocks, each
@@ -30,9 +31,11 @@ import java.io.*;
  */
 public class TarJsonStatusCorpusReader implements StatusStream {
   private final TarArchiveInputStream tarInput;
+  private final ExecutorService executor;
   private Bz2JsonStatusBlockReader currentBlock = null;
 
-  public TarJsonStatusCorpusReader(File file) throws IOException {
+  public TarJsonStatusCorpusReader(File file, ExecutorService executor) throws IOException {
+    this.executor = executor;
     Preconditions.checkNotNull(file);
 
     if (!file.isFile()) {
@@ -51,7 +54,7 @@ public class TarJsonStatusCorpusReader implements StatusStream {
       TarArchiveEntry entry = tarInput.getNextTarEntry();
       if (entry != null) {
         if (entry.getName().endsWith(".bz2")) {
-          currentBlock = new Bz2JsonStatusBlockReader(tarInput);
+          currentBlock = new Bz2JsonStatusBlockReader(tarInput, executor);
         }
       } else {
         return null;
@@ -73,7 +76,7 @@ public class TarJsonStatusCorpusReader implements StatusStream {
         TarArchiveEntry entry = tarInput.getNextTarEntry();
         if (entry != null) {
           if (entry.getName().endsWith(".bz2")) {
-            currentBlock = new Bz2JsonStatusBlockReader(tarInput);
+            currentBlock = new Bz2JsonStatusBlockReader(tarInput, executor);
           }
         } else {
           return null;

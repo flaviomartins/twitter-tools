@@ -17,13 +17,13 @@
 package cc.twittertools.corpus.data;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import twitter4j.Status;
 
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Abstraction for a corpus of statuses. A corpus is assumed to consist of a number of blocks, each
@@ -35,9 +35,9 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
   private static final Object POISON_PILL = new Object();
 
   private final File[] files;
-  private BlockingQueue blockingQueue;
-  private ExecutorService executor;
-  private AtomicBoolean stop;
+  private final BlockingQueue blockingQueue;
+  private final ExecutorService innerExecutor;
+  private final ExecutorService executor;
 
   public TwitterstreamJsonStatusCorpusReader(File file, int numThreads) throws IOException, InterruptedException {
     Preconditions.checkNotNull(file);
@@ -58,9 +58,13 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
 
     blockingQueue = new ArrayBlockingQueue(100000);
 
-    executor = Executors.newFixedThreadPool(numThreads);
+    innerExecutor = Executors.newFixedThreadPool(numThreads,
+            new ThreadFactoryBuilder().setDaemon(true).setNameFormat("TarInnerReaderThread-%d").build());
+
+    executor = Executors.newFixedThreadPool(numThreads,
+            new ThreadFactoryBuilder().setDaemon(true).setNameFormat("TarReaderThread-%d").build());
     for (File tarFile : files) {
-      Runnable worker = new TarReaderThread(tarFile, blockingQueue);
+      Runnable worker = new TarReaderThread(tarFile, blockingQueue, innerExecutor);
       executor.execute(worker);
     }
     executor.shutdown();
@@ -82,23 +86,26 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
 
     private final File file;
     private final BlockingQueue blockingQueue;
+    private final ExecutorService executor;
     private TarJsonStatusCorpusReader currentReader;
 
-    public TarReaderThread(File file, BlockingQueue blockingQueue) {
+    public TarReaderThread(File file, BlockingQueue blockingQueue, ExecutorService executor) {
       this.file = file;
       this.blockingQueue = blockingQueue;
+      this.executor = executor;
     }
 
     @Override
     public void run() {
       try {
-        currentReader = new TarJsonStatusCorpusReader(file);
+        currentReader = new TarJsonStatusCorpusReader(file, executor);
 
         Status status;
         while ((status = currentReader.next()) != null) {
           blockingQueue.put(status);
         }
       } catch (Exception e) {
+          e.printStackTrace();
       }
     }
   }
@@ -109,8 +116,10 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
   public Status next() throws IOException {
     try {
       Object element = blockingQueue.take();
-      if (POISON_PILL.equals(element))
-        return null;
+      if (POISON_PILL.equals(element)) {
+          innerExecutor.shutdown();
+          return null;
+      }
 
       return (Status) element;
     } catch (Exception e) {
