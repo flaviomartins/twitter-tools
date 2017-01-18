@@ -16,6 +16,7 @@
 
 package cc.twittertools.index;
 
+import cc.twittertools.corpus.data.SampledStatusStream;
 import cc.twittertools.corpus.data.TwitterstreamJsonStatusCorpusReader;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
@@ -97,6 +98,7 @@ public class IndexStatuses {
   private static final String PRINT_DPS_OPTION = "printDPS";
   private static final String THREAD_COUNT_OPTION = "threadCount";
   private static final String FORMAT_OPTION = "twitterstream";
+  private static final String SAMPLE_OPTION = "sample";
 
   @SuppressWarnings("static-access")
   public static void main(String[] args) throws Exception {
@@ -109,6 +111,7 @@ public class IndexStatuses {
     options.addOption(new Option(UPDATE_OPTION, "update index"));
     options.addOption(new Option(PRINT_DPS_OPTION, "print DPS"));
     options.addOption(new Option(FORMAT_OPTION, "use twitterstream tar format"));
+    options.addOption(new Option(SAMPLE_OPTION, "sample collection"));
 
     options.addOption(OptionBuilder.withArgName("dir").hasArg()
         .withDescription("source collection directory").create(COLLECTION_OPTION));
@@ -120,6 +123,8 @@ public class IndexStatuses {
         .withDescription("max id").create(MAX_ID_OPTION));
     options.addOption(OptionBuilder.withArgName("num").hasArg()
             .withDescription("number of threads").create(THREAD_COUNT_OPTION));
+    options.addOption(OptionBuilder.withArgName("percent").hasArg()
+            .withDescription("sampling percentage").create(SAMPLE_OPTION));
 
     CommandLine cmdline = null;
     CommandLineParser parser = new GnuParser();
@@ -206,6 +211,13 @@ public class IndexStatuses {
       stream = new TwitterstreamJsonStatusCorpusReader(file, numThreads);
     } else {
       stream = new JsonStatusCorpusReader(file);
+    }
+
+    float samplePercentage;
+    if (cmdline.hasOption(SAMPLE_OPTION)) {
+      samplePercentage = Float.parseFloat(cmdline.getOptionValue(SAMPLE_OPTION));
+      stream = new SampledStatusStream(stream, samplePercentage);
+      LOG.info("sample: " + samplePercentage + "% from full collection");
     }
 
     final Directory dir = FSDirectory.open(new File(dirPath));
