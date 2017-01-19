@@ -53,22 +53,29 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
       numTasks++;
     }
 
-    for (int i = 0; i < numTasks; i++) {
-      try {
-        final Future<Status> future = completionService.take();
-        blockingQueue.put(future.get());
-      } catch (InterruptedException e) {
-        // do nothing
-      } catch (ExecutionException e) {
-        // do nothing
-      }
-    }
+    final int tasksNumber = numTasks;
 
-    try {
-      blockingQueue.put(POISON_PILL);
-    } catch (InterruptedException e) {
-      // do nothing
-    }
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        for (int i = 0; i < tasksNumber; i++) {
+          try {
+              final Future<Status> future = completionService.take();
+              blockingQueue.put(future.get());
+          } catch (InterruptedException e) {
+              // do nothing
+          } catch (ExecutionException e) {
+              // do nothing
+          }
+        }
+
+        try {
+          blockingQueue.put(POISON_PILL);
+        } catch (InterruptedException e) {
+          // do nothing
+        }
+      }
+    }).start();
   }
 
   static class JsonReaderCallable implements Callable<Status> {
@@ -89,7 +96,7 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException {
+  public Status next() {
     try {
       Object element = blockingQueue.take();
       if (POISON_PILL.equals(element))

@@ -105,7 +105,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
           blockingQueue.put(status);
         }
       } catch (Exception e) {
-          e.printStackTrace();
+        e.printStackTrace();
       }
     }
   }
@@ -113,13 +113,11 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
   /**
    * Returns the next status, or <code>null</code> if no more statuses.
    */
-  public Status next() throws IOException {
+  public Status next() {
     try {
       Object element = blockingQueue.take();
-      if (POISON_PILL.equals(element)) {
-          innerExecutor.shutdown();
-          return null;
-      }
+      if (POISON_PILL.equals(element))
+        return null;
 
       return (Status) element;
     } catch (InterruptedException e) {
