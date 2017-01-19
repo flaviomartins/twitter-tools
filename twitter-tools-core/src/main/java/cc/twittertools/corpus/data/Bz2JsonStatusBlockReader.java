@@ -19,11 +19,9 @@ package cc.twittertools.corpus.data;
 import com.google.common.base.Preconditions;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import twitter4j.Status;
-import twitter4j.TwitterException;
 import twitter4j.TwitterObjectFactory;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.concurrent.*;
 
 /**
@@ -36,7 +34,6 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
 
   private final InputStream in;
   private final BufferedReader br;
-  private final CountDownLatch stopLatch;
   private final BlockingQueue blockingQueue;
 
   public Bz2JsonStatusBlockReader(InputStream in, final ExecutorService executor) throws IOException {
@@ -47,57 +44,45 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
 
     blockingQueue = new ArrayBlockingQueue(100000);
 
-    ArrayList<String> read = new ArrayList<String>();
+    final CompletionService<Status> completionService = new ExecutorCompletionService<Status>(executor);
+
+    int numTasks = 0;
     String raw;
-    // Check to see if we've reached end of file.
     while ((raw = br.readLine()) != null) {
-      read.add(raw);
+      completionService.submit(new JsonReaderCallable(raw));
+      numTasks++;
     }
 
-    stopLatch = new CountDownLatch(read.size());
-
-    for (String line : read) {
-      Runnable worker = new JsonReaderThread(stopLatch, line, blockingQueue);
-      executor.execute(worker);
-    }
-
-    // waits for the tasks to finish or timeout
-    new Thread(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          stopLatch.await();
-          blockingQueue.put(POISON_PILL);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
+    for (int i = 0; i < numTasks; i++) {
+      try {
+        final Future<Status> future = completionService.take();
+        blockingQueue.put(future.get());
+      } catch (InterruptedException e) {
+        // do nothing
+      } catch (ExecutionException e) {
+        // do nothing
       }
-    }).start();
+    }
+
+    try {
+      blockingQueue.put(POISON_PILL);
+    } catch (InterruptedException e) {
+      // do nothing
+    }
   }
 
-  static class JsonReaderThread implements Runnable {
+  static class JsonReaderCallable implements Callable<Status> {
 
-    private final CountDownLatch stopLatch;
     private final String raw;
-    private final BlockingQueue blockingQueue;
 
-    public JsonReaderThread(CountDownLatch stopLatch, String raw, BlockingQueue blockingQueue) {
-      this.stopLatch = stopLatch;
+    public JsonReaderCallable(String raw) {
       this.raw = raw;
-      this.blockingQueue = blockingQueue;
     }
 
     @Override
-    public void run() {
-      try {
-        Status nxt = TwitterObjectFactory.createStatus(raw);
-        blockingQueue.put(nxt);
-      } catch (TwitterException e) {
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      } finally {
-        stopLatch.countDown();
-      }
+    public Status call() throws Exception {
+      Status nxt = TwitterObjectFactory.createStatus(raw);
+      return nxt;
     }
   }
 
@@ -111,7 +96,7 @@ public class Bz2JsonStatusBlockReader implements StatusStream {
         return null;
 
       return (Status) element;
-    } catch (Exception e) {
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
   }

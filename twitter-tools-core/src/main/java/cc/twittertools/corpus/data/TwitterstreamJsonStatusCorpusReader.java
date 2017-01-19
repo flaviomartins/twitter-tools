@@ -39,7 +39,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
   private final ExecutorService innerExecutor;
   private final ExecutorService executor;
 
-  public TwitterstreamJsonStatusCorpusReader(File file, int numThreads) throws IOException, InterruptedException {
+  public TwitterstreamJsonStatusCorpusReader(File file, int numThreads) throws IOException {
     Preconditions.checkNotNull(file);
 
     if (!file.isDirectory()) {
@@ -76,7 +76,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
           executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
           blockingQueue.put(POISON_PILL);
         } catch (InterruptedException e) {
-          e.printStackTrace();
+          // do nothing
         }
       }
     }).start();
@@ -122,7 +122,7 @@ public class TwitterstreamJsonStatusCorpusReader implements StatusStream {
       }
 
       return (Status) element;
-    } catch (Exception e) {
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
   }
