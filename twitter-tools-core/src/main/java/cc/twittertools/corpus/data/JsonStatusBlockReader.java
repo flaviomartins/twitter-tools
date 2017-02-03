@@ -50,10 +50,9 @@ public class JsonStatusBlockReader implements StatusStream {
    */
   public Status next() throws IOException {
     Status nxt = null;
-    String raw = null;
 
     while (nxt == null) {
-      raw = br.readLine();
+      String raw = br.readLine();
 
       // Check to see if we've reached end of file.
       if (raw == null) {

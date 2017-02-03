@@ -85,6 +85,8 @@ public class TarJsonStatusCorpusReader implements StatusStream {
   }
 
   public void close() throws IOException {
-    currentBlock.close();
+    if (currentBlock != null) {
+      currentBlock.close();
+    }
   }
 }
