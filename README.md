@@ -31,7 +31,7 @@ The main Maven artifact for the TREC Microblog API is `twitter-tools-core`. The 
 You can clone the repo with the following command:
 
 ```
-$ git clone git://github.com/lintool/twitter-tools.git
+$ git clone git://github.com/flaviomartins/twitter-tools.git
 ``` 
 
 Once you've cloned the repository, change directory into `twitter-tools-core` and build the package with Maven:
