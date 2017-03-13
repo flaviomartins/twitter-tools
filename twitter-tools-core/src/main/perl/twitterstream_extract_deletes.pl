@@ -9,7 +9,7 @@ for $f ( `ls $directory` ) {
     chomp($f);
     my $path = "$directory/$f";
 
-    open(DATA, "tar xfO $path --wildcards '*.bz2' | bzcat | grep '{\"delete\"' | ");
+    open(DATA, "tar xfO $path --wildcards '*.bz2' | pbzip2 -dc | grep '{\"delete\"' | ");
     while ( my $line = <DATA> ) {
 	if ( $line =~ m/{"delete":{"status":{"id":(\d+),/ ) {
 	    print "$1\n";
