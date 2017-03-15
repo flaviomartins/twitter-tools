@@ -32,7 +32,7 @@ import org.apache.commons.cli.ParseException;
 
 public class HTMLStatusExtractor {
 
-    public SimpleDateFormat date_fmt = new SimpleDateFormat("EEE MMM d kk:mm:ss Z yyyy");
+    public SimpleDateFormat date_fmt = new SimpleDateFormat("EEE MMM d HH:mm:ss z yyyy");
 
     public HTMLStatusExtractor() {
 	date_fmt.setTimeZone(TimeZone.getTimeZone("UTC"));
