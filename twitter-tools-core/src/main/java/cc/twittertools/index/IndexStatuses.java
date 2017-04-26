@@ -99,6 +99,7 @@ public class IndexStatuses {
   private static final String THREAD_COUNT_OPTION = "threadCount";
   private static final String FORMAT_OPTION = "twitterstream";
   private static final String SAMPLE_OPTION = "sample";
+  private static final String STOPWORDS_OPTION = "stopwords";
 
   @SuppressWarnings("static-access")
   public static void main(String[] args) throws Exception {
@@ -112,6 +113,7 @@ public class IndexStatuses {
     options.addOption(new Option(PRINT_DPS_OPTION, "print DPS"));
     options.addOption(new Option(FORMAT_OPTION, "use twitterstream tar format"));
     options.addOption(new Option(SAMPLE_OPTION, "sample collection"));
+    options.addOption(new Option(STOPWORDS_OPTION, "remove stopwords"));
 
     options.addOption(OptionBuilder.withArgName("dir").hasArg()
         .withDescription("source collection directory").create(COLLECTION_OPTION));
@@ -125,6 +127,8 @@ public class IndexStatuses {
             .withDescription("number of threads").create(THREAD_COUNT_OPTION));
     options.addOption(OptionBuilder.withArgName("percent").hasArg()
             .withDescription("sampling percentage").create(SAMPLE_OPTION));
+    options.addOption(OptionBuilder.withArgName("file").hasArg()
+            .withDescription("stopwords file").create(STOPWORDS_OPTION));
 
     CommandLine cmdline = null;
     CommandLineParser parser = new GnuParser();
@@ -231,7 +235,14 @@ public class IndexStatuses {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LATEST, IndexStatuses.ANALYZER);
+    Analyzer analyzer = IndexStatuses.ANALYZER;
+    if (cmdline.hasOption(STOPWORDS_OPTION)) {
+      LOG.info("Stopwords=" + cmdline.getOptionValue(STOPWORDS_OPTION));
+      File stopwordsFile = new File(cmdline.getOptionValue(STOPWORDS_OPTION));
+      analyzer = new TweetAnalyzer(stopwordsFile);
+    }
+
+    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LATEST, analyzer);
     // More RAM before flushing means Lucene writes larger segments to begin with which means less merging later.
     iwc.setRAMBufferSizeMB(48);
 

@@ -16,6 +16,8 @@
 
 package cc.twittertools.index;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Reader;
 
 import com.google.common.base.CharMatcher;
@@ -31,6 +33,7 @@ import org.apache.lucene.analysis.standard.StandardFilter;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.analysis.util.CharTokenizer;
 import org.apache.lucene.analysis.util.StopwordAnalyzerBase;
+import org.apache.lucene.analysis.util.WordlistLoader;
 import org.apache.lucene.util.Version;
 
 /**
@@ -87,6 +90,36 @@ public final class TweetAnalyzer extends StopwordAnalyzerBase {
   @Deprecated
   public TweetAnalyzer(Version matchVersion, CharArraySet stopwords) {
     this(matchVersion, stopwords, CharArraySet.EMPTY_SET);
+  }
+
+  /** Builds an analyzer with the stop words from the given file.
+   * @see WordlistLoader#getWordSet(Reader)
+   * @param stopwordsFile File to load stop words from */
+  public TweetAnalyzer(File stopwordsFile) throws IOException {
+    this(loadStopwordSet(stopwordsFile));
+  }
+
+  /**
+   * @deprecated Use {@link #TweetAnalyzer(File)}
+   */
+  @Deprecated
+  public TweetAnalyzer(Version matchVersion, File stopwordsFile) throws IOException {
+    this(matchVersion, loadStopwordSet(stopwordsFile, matchVersion));
+  }
+
+  /** Builds an analyzer with the stop words from the given reader.
+   * @see WordlistLoader#getWordSet(Reader)
+   * @param stopwords Reader to load stop words from */
+  public TweetAnalyzer(Reader stopwords) throws IOException {
+    this(loadStopwordSet(stopwords));
+  }
+
+  /**
+   * @deprecated Use {@link #TweetAnalyzer(Reader)}
+   */
+  @Deprecated
+  public TweetAnalyzer(Version matchVersion, Reader stopwords) throws IOException {
+    this(matchVersion, loadStopwordSet(stopwords, matchVersion));
   }
 
   /**
