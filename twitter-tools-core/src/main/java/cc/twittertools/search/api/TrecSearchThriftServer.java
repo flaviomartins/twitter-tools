@@ -115,7 +115,7 @@ public class TrecSearchThriftServer {
       System.exit(-1);
     }
 
-    IndexReader reader = DirectoryReader.open(MMapDirectory.open(index));
+    IndexReader reader = DirectoryReader.open(MMapDirectory.open(index.toPath()));
     IndexSearcher searcher = new IndexSearcher(reader);
     searcher.setSimilarity(new LMDirichletSimilarity(DEFAULT_MU));
 

@@ -69,7 +69,7 @@ public class ExtractTweetidsFromIndex {
       System.exit(-1);
     }
 
-    IndexReader reader = DirectoryReader.open(FSDirectory.open(indexLocation));
+    IndexReader reader = DirectoryReader.open(FSDirectory.open(indexLocation.toPath()));
     PrintStream out = new PrintStream(System.out, true, "UTF-8");
     for (int i=0; i<reader.maxDoc(); i++) {
       Document doc = reader.document(i);

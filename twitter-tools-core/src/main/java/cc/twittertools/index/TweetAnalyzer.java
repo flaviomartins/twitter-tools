@@ -34,7 +34,6 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.analysis.util.CharTokenizer;
 import org.apache.lucene.analysis.util.StopwordAnalyzerBase;
 import org.apache.lucene.analysis.util.WordlistLoader;
-import org.apache.lucene.util.Version;
 
 /**
  * {@link Analyzer} for Tweets.
@@ -68,14 +67,6 @@ public final class TweetAnalyzer extends StopwordAnalyzerBase {
   }
 
   /**
-   * @deprecated Use {@link #TweetAnalyzer()}
-   */
-  @Deprecated
-  public TweetAnalyzer(Version matchVersion) {
-    this(matchVersion, DefaultSetHolder.DEFAULT_STOP_SET);
-  }
-
-  /**
    * Builds an analyzer with the given stop words.
    *
    * @param stopwords a stopword set
@@ -84,27 +75,11 @@ public final class TweetAnalyzer extends StopwordAnalyzerBase {
     this(stopwords, CharArraySet.EMPTY_SET);
   }
 
-  /**
-   * @deprecated Use {@link #TweetAnalyzer(CharArraySet)}
-   */
-  @Deprecated
-  public TweetAnalyzer(Version matchVersion, CharArraySet stopwords) {
-    this(matchVersion, stopwords, CharArraySet.EMPTY_SET);
-  }
-
   /** Builds an analyzer with the stop words from the given file.
    * @see WordlistLoader#getWordSet(Reader)
    * @param stopwordsFile File to load stop words from */
   public TweetAnalyzer(File stopwordsFile) throws IOException {
-    this(loadStopwordSet(stopwordsFile));
-  }
-
-  /**
-   * @deprecated Use {@link #TweetAnalyzer(File)}
-   */
-  @Deprecated
-  public TweetAnalyzer(Version matchVersion, File stopwordsFile) throws IOException {
-    this(matchVersion, loadStopwordSet(stopwordsFile, matchVersion));
+    this(loadStopwordSet(stopwordsFile.toPath()));
   }
 
   /** Builds an analyzer with the stop words from the given reader.
@@ -115,29 +90,12 @@ public final class TweetAnalyzer extends StopwordAnalyzerBase {
   }
 
   /**
-   * @deprecated Use {@link #TweetAnalyzer(Reader)}
-   */
-  @Deprecated
-  public TweetAnalyzer(Version matchVersion, Reader stopwords) throws IOException {
-    this(matchVersion, loadStopwordSet(stopwords, matchVersion));
-  }
-
-  /**
    * Builds an analyzer with the default stop words: {@link #getDefaultStopSet}.
    *
    * @param stemming to optionally disable stemming
    */
   public TweetAnalyzer(boolean stemming) {
     this(DefaultSetHolder.DEFAULT_STOP_SET);
-    this.stemming = stemming;
-  }
-
-  /**
-   * @deprecated Use {@link #TweetAnalyzer(boolean)}
-   */
-  @Deprecated
-  public TweetAnalyzer(Version matchVersion, boolean stemming) {
-    this(matchVersion, DefaultSetHolder.DEFAULT_STOP_SET);
     this.stemming = stemming;
   }
 
@@ -155,16 +113,6 @@ public final class TweetAnalyzer extends StopwordAnalyzerBase {
   }
 
   /**
-   * @deprecated Use {@link #TweetAnalyzer(CharArraySet, CharArraySet)}
-   */
-  @Deprecated
-  public TweetAnalyzer(Version matchVersion, CharArraySet stopwords, CharArraySet stemExclusionSet) {
-    super(matchVersion, stopwords);
-    this.stemExclusionSet = CharArraySet.unmodifiableSet(CharArraySet.copy(
-            matchVersion, stemExclusionSet));
-  }
-
-  /**
    * Creates a
    * {@link org.apache.lucene.analysis.Analyzer.TokenStreamComponents}
    * which tokenizes all the text in the provided {@link Reader}.
@@ -178,17 +126,15 @@ public final class TweetAnalyzer extends StopwordAnalyzerBase {
    *         provided and {@link PorterStemFilter}.
    */
   @Override
-  protected TokenStreamComponents createComponents(final String fieldName, final Reader reader) {
-    Tokenizer source = new CharTokenizer(getVersion(), reader) {
+  protected TokenStreamComponents createComponents(final String fieldName) {
+    final Tokenizer source = new CharTokenizer() {
       @Override
       protected boolean isTokenChar(int c) {
         return !CharMatcher.WHITESPACE.matches((char) c);
       }
     };
-    TokenStream result = new StandardFilter(getVersion(), source);
-    // prior to this we get the classic behavior, standardfilter does it for us.
-    if (getVersion().onOrAfter(Version.LUCENE_3_1))
-      result = new EnglishPossessiveFilter(getVersion(), source);
+    TokenStream result = new StandardFilter(source);
+    result = new EnglishPossessiveFilter(result);
     result = new LowerCaseEntityPreservingFilter(result);
     // FIXME: LowerCaseFilter use blocked by LUCENE-3236
     result = new StopFilter(result, stopwords);

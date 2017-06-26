@@ -25,6 +25,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,15 +42,15 @@ import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.index.FieldInfo.IndexOptions;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.TieredMergePolicy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.PrintStreamInfoStream;
-import org.apache.lucene.util.Version;
 
 import cc.twittertools.corpus.data.JsonStatusCorpusReader;
 import cc.twittertools.corpus.data.StatusStream;
@@ -159,7 +160,6 @@ public class IndexStatuses {
     }
 
     final FieldType textOptions = new FieldType();
-    textOptions.setIndexed(true);
     textOptions.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
     textOptions.setStored(true);
     textOptions.setTokenized(true);
@@ -224,7 +224,7 @@ public class IndexStatuses {
       LOG.info("sample: " + samplePercentage + "% from full collection");
     }
 
-    final Directory dir = FSDirectory.open(new File(dirPath));
+    final Directory dir = FSDirectory.open(Paths.get(dirPath));
 
     LOG.info("Index path: " + dirPath);
     LOG.info("Threads: " + numThreads);
@@ -242,7 +242,7 @@ public class IndexStatuses {
       analyzer = new TweetAnalyzer(stopwordsFile);
     }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(Version.LATEST, analyzer);
+    final IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
     // More RAM before flushing means Lucene writes larger segments to begin with which means less merging later.
     iwc.setRAMBufferSizeMB(48);
 
@@ -297,7 +297,7 @@ public class IndexStatuses {
       w.commit();
       LOG.info("Indexer: merging took " + (System.currentTimeMillis() - mergeStart)/1000.0 + " sec");
     }
-    LOG.info("Indexer: at close: " + w.segString());
+    LOG.info("Indexer: at close: " + SegmentInfos.readLatestCommit(dir));
     final long tCloseStart = System.currentTimeMillis();
     w.close();
     LOG.info("Indexer: close took " + (System.currentTimeMillis() - tCloseStart)/1000.0 + " sec");

@@ -16,8 +16,8 @@
 
 package cc.twittertools.index;
 
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Paths;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -70,7 +70,7 @@ public class ExtractTermStatisticsFromIndex {
 
     PrintStream out = new PrintStream(System.out, true, "UTF-8");
 
-    IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(indexLocation)));
+    IndexReader reader = DirectoryReader.open(FSDirectory.open(Paths.get(indexLocation)));
 
     long sumDocFreq = reader.getSumDocFreq(StatusField.TEXT.name);
     long sumTotalTermFreq = reader.getSumTotalTermFreq(StatusField.TEXT.name);
@@ -78,7 +78,7 @@ public class ExtractTermStatisticsFromIndex {
     out.println("\t" + sumDocFreq + "\t" + sumTotalTermFreq);
 
     Terms terms = SlowCompositeReaderWrapper.wrap(reader).terms(StatusField.TEXT.name);
-    TermsEnum termsEnum = terms.iterator(TermsEnum.EMPTY);
+    TermsEnum termsEnum = terms.iterator();
 
     long totalTerms = 0;
     long missingCnt = 0;

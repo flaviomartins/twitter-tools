@@ -125,7 +125,7 @@ public class SearchStatuses {
 
     PrintStream out = new PrintStream(System.out, true, "UTF-8");
 
-    IndexReader reader = DirectoryReader.open(FSDirectory.open(indexLocation));
+    IndexReader reader = DirectoryReader.open(FSDirectory.open(indexLocation.toPath()));
     IndexSearcher searcher = new IndexSearcher(reader);
 
     if (similarity.equalsIgnoreCase("BM25")) {
