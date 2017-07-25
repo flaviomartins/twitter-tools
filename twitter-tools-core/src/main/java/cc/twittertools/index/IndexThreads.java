@@ -18,16 +18,23 @@ package cc.twittertools.index;
  */
 
 import cc.twittertools.corpus.data.StatusStream;
+import com.google.common.base.CharMatcher;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
-import twitter4j.Status;
+import twitter4j.*;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
+
+import static cc.twittertools.index.IndexStatuses.*;
 
 class IndexThreads {
   private static final Logger LOG = Logger.getLogger(IndexThreads.class);
@@ -101,6 +108,12 @@ class IndexThreads {
   }
 
   private static class IndexThread extends Thread {
+    public static final String RT = "^/?RT:?\\s*:?|\\s/?RT:?\\s*:?|\\(RT:?.*\\)";
+    public static final Pattern RT_PATTERN;
+
+    public static final int MIN_CLEAN_TEXT_LENGTH = 20;
+    public static final String EN = "en";
+
     private final BlockingQueue blockingQueue;
     private final int numTotalDocs;
     private final IndexWriter w;
@@ -109,6 +122,13 @@ class IndexThreads {
     private final CountDownLatch startLatch;
     private final CountDownLatch stopLatch;
     private final AtomicBoolean failed;
+    private final DocState docState;
+
+    static {
+      synchronized (IndexThread.class) {
+        RT_PATTERN = Pattern.compile(RT);
+      }
+    }
 
     public IndexThread(CountDownLatch startLatch, CountDownLatch stopLatch, IndexWriter w, FieldType textOptions,
                        BlockingQueue blockingQueue, int numTotalDocs, AtomicInteger count,
@@ -121,44 +141,7 @@ class IndexThreads {
       this.numTotalDocs = numTotalDocs;
       this.count = count;
       this.failed = failed;
-    }
-
-    private Document getDocumentFromDocData(Status status) {
-      Document doc = new Document();
-      long id = status.getId();
-      doc.add(new LongField(IndexStatuses.StatusField.ID.name, id, Field.Store.YES));
-      doc.add(new LongField(IndexStatuses.StatusField.EPOCH.name, status.getCreatedAt().getTime() / 1000L, Field.Store.YES));
-      doc.add(new TextField(IndexStatuses.StatusField.SCREEN_NAME.name, status.getUser().getScreenName(), Field.Store.YES));
-
-      doc.add(new Field(IndexStatuses.StatusField.TEXT.name, status.getText(), textOptions));
-
-      doc.add(new IntField(IndexStatuses.StatusField.FRIENDS_COUNT.name, status.getUser().getFriendsCount(), Field.Store.YES));
-      doc.add(new IntField(IndexStatuses.StatusField.FOLLOWERS_COUNT.name, status.getUser().getFollowersCount(), Field.Store.YES));
-      doc.add(new IntField(IndexStatuses.StatusField.STATUSES_COUNT.name, status.getUser().getStatusesCount(), Field.Store.YES));
-
-      long inReplyToStatusId = status.getInReplyToStatusId();
-      if (inReplyToStatusId > 0) {
-        doc.add(new LongField(IndexStatuses.StatusField.IN_REPLY_TO_STATUS_ID.name, inReplyToStatusId, Field.Store.YES));
-        doc.add(new LongField(IndexStatuses.StatusField.IN_REPLY_TO_USER_ID.name, status.getInReplyToUserId(), Field.Store.YES));
-      }
-
-      String lang = status.getLang();
-      if (lang != null && !"unknown".equals(lang)) {
-        doc.add(new TextField(IndexStatuses.StatusField.LANG.name, lang, Field.Store.YES));
-      }
-
-      // In Tweets2011 retweet_count exists but not the other retweet fields
-      int retweetCount = status.getRetweetCount();
-      if (retweetCount > -1) {
-        doc.add(new IntField(IndexStatuses.StatusField.RETWEET_COUNT.name, retweetCount, Field.Store.YES));
-      }
-
-      Status retweetedStatus = status.getRetweetedStatus();
-      if (retweetedStatus != null) {
-        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_STATUS_ID.name, retweetedStatus.getId(), Field.Store.YES));
-        doc.add(new LongField(IndexStatuses.StatusField.RETWEETED_USER_ID.name, retweetedStatus.getUser().getId(), Field.Store.YES));
-      }
-      return doc;
+      docState = new DocState(textOptions);
     }
 
     @Override
@@ -180,10 +163,116 @@ class IndexThreads {
 
           Status status = (Status) element;
 
-          Document doc = getDocumentFromDocData(status);
-          if (doc == null) {
-            break;
+          //Check twitter lang field
+          String lang = status.getLang();
+          if (lang == null || !EN.equals(lang)) continue;
+
+          Status quotedStatus = status.getQuotedStatus();
+          Status retweetedStatus = status.getRetweetedStatus();
+
+          String text = status.getText();
+          int textLength = text.length();
+          StringBuffer buf = new StringBuffer(text);
+
+          URLEntity[] urlEntities = status.getURLEntities();
+          for (URLEntity urlEntity : urlEntities) {
+            if (urlEntity.getStart() < textLength) {
+              int length = urlEntity.getEnd() - urlEntity.getStart();
+              buf.replace(urlEntity.getStart(), urlEntity.getEnd(), StringUtils.repeat(" ", length));
+            }
           }
+
+          MediaEntity[] mediaEntities = status.getMediaEntities();
+          for (MediaEntity mediaEntity : mediaEntities) {
+            if (mediaEntity.getStart() < textLength) {
+              int length = mediaEntity.getEnd() - mediaEntity.getStart();
+              buf.replace(mediaEntity.getStart(), mediaEntity.getEnd(), StringUtils.repeat(" ", length));
+            }
+          }
+
+          HashtagEntity[] hashtagEntities = status.getHashtagEntities();
+          List<String> splittedHashtags = new LinkedList<>();
+          for (HashtagEntity hashtagEntity : hashtagEntities) {
+            if (hashtagEntity.getStart() < textLength) {
+              // remove # symbol
+              buf.setCharAt(hashtagEntity.getStart(), ' ');
+
+              if (hashtagEntity.getEnd() <= textLength) {
+                String[] split = buf.substring(hashtagEntity.getStart(), hashtagEntity.getEnd()).split("(?=\\p{Upper})");
+                for (String s : split)
+                  splittedHashtags.add(s);
+              } else {
+                int length = hashtagEntity.getEnd() - hashtagEntity.getStart();
+                buf.replace(hashtagEntity.getStart(), hashtagEntity.getEnd(), StringUtils.repeat(" ", length));
+              }
+            }
+          }
+
+          //Add splitted hashtags to the end of the text
+          for (String s : splittedHashtags)
+            buf.append(" " + s);
+
+          SymbolEntity[] symbolEntities = status.getSymbolEntities();
+          for (SymbolEntity symbolEntity : symbolEntities) {
+            if (symbolEntity.getStart() < textLength) {
+              int length = symbolEntity.getEnd() - symbolEntity.getStart();
+              buf.replace(symbolEntity.getStart(), symbolEntity.getEnd(), StringUtils.repeat(" ", length));
+            }
+          }
+
+          UserMentionEntity[] mentionEntities = status.getUserMentionEntities();
+          for (UserMentionEntity mentionEntity : mentionEntities) {
+            if (mentionEntity.getStart() < textLength) {
+              int length = mentionEntity.getEnd() - mentionEntity.getStart();
+              buf.replace(mentionEntity.getStart(), mentionEntity.getEnd(), StringUtils.repeat(" ", length));
+            }
+          }
+
+          // remove long empty spaces
+          String cleanText = buf.toString().replaceAll("\\s\\s+", " ").trim();
+          cleanText = RT_PATTERN.matcher(cleanText).replaceAll("").trim();
+
+          //Discard very short tweets
+          int cleanTextLength = cleanText.length();
+          if (cleanTextLength < MIN_CLEAN_TEXT_LENGTH) continue;
+
+          //Discard tweets that are fully capitalized after stripping of special chars
+          if (CharMatcher.javaUpperCase().matchesAllOf(cleanText.replaceAll("[^A-Za-z0-9]", ""))) continue;
+
+          long id = status.getId();
+          docState.id.setLongValue(id);
+          docState.epoch.setLongValue(status.getCreatedAt().getTime() / 1000L);
+          docState.text.setStringValue(text);
+          docState.text_english.setStringValue(cleanText);
+          docState.lang.setStringValue(lang);
+
+          // user info
+          docState.screenName.setStringValue(status.getUser().getScreenName());
+          docState.friendsCount.setIntValue(status.getUser().getFriendsCount());
+          docState.followersCount.setIntValue(status.getUser().getFollowersCount());
+          docState.statusesCount.setIntValue(status.getUser().getStatusesCount());
+
+          // reply info
+          docState.inReplytoStatusId.setLongValue(status.getInReplyToStatusId());
+          docState.inReplytoUserId.setLongValue(status.getInReplyToUserId());
+
+          // quote info
+          if (quotedStatus != null) {
+            docState.quotedStatusId.setLongValue(status.getQuotedStatusId());
+          } else {
+            docState.quotedStatusId.setLongValue(0);
+          }
+
+          // retweet info
+          docState.retweetCount.setIntValue(status.getRetweetCount());
+          if (retweetedStatus != null) {
+            docState.retweetedStatusId.setLongValue(retweetedStatus.getId());
+            docState.retweetedUserId.setLongValue(retweetedStatus.getUser().getId());
+          } else {
+            docState.retweetedStatusId.setLongValue(0);
+            docState.retweetedUserId.setLongValue(0);
+          }
+
           int docCount = count.incrementAndGet();
           if (numTotalDocs != -1 && docCount > numTotalDocs) {
             break;
@@ -191,9 +280,8 @@ class IndexThreads {
           if ((docCount % 100000) == 0) {
             LOG.info("Indexer: " + docCount + " docs... (" + (System.currentTimeMillis() - tStart) / 1000.0 + " sec)");
           }
-          w.addDocument(doc);
+          w.addDocument(docState.doc);
         }
-
       } catch (Exception e) {
         failed.set(true);
         throw new RuntimeException(e);
@@ -264,6 +352,74 @@ class IndexThreads {
       long now = System.currentTimeMillis();
       double seconds = (now - start) / 1000.0d;
       LOG.info("Producer: " + (int)(numProd / seconds) + " " + seconds + " " + numProd + " produced...");
+    }
+  }
+
+  public static final class DocState {
+    final Document doc;
+    final Field id;
+    final Field epoch;
+    final Field text;
+    final Field text_english;
+    final Field lang;
+    final Field screenName;
+    final Field friendsCount;
+    final Field followersCount;
+    final Field statusesCount;
+    final Field inReplytoStatusId;
+    final Field inReplytoUserId;
+    final Field quotedStatusId;
+    final Field retweetedStatusId;
+    final Field retweetedUserId;
+    final Field retweetCount;
+
+    DocState(FieldType textOptions) {
+      doc = new Document();
+
+      id = new LongField(StatusField.ID.name, 0, Field.Store.YES);
+      doc.add(id);
+
+      epoch = new LongField(StatusField.EPOCH.name, 0, Field.Store.YES);
+      doc.add(epoch);
+
+      text = new Field(StatusField.TEXT.name, "", textOptions);
+      doc.add(text);
+
+      text_english = new Field(StatusField.TEXT_ENGLISH.name, "", textOptions);
+      doc.add(text_english);
+
+      lang = new StringField(StatusField.LANG.name, "", Field.Store.YES);
+      doc.add(lang);
+
+      screenName = new StringField(StatusField.SCREEN_NAME.name, "", Field.Store.YES);
+      doc.add(screenName);
+
+      friendsCount = new IntField(StatusField.FRIENDS_COUNT.name, 0, Field.Store.YES);
+      doc.add(friendsCount);
+
+      followersCount = new IntField(StatusField.FOLLOWERS_COUNT.name, 0, Field.Store.YES);
+      doc.add(followersCount);
+
+      statusesCount = new IntField(StatusField.STATUSES_COUNT.name, 0, Field.Store.YES);
+      doc.add(statusesCount);
+
+      inReplytoStatusId = new LongField(StatusField.IN_REPLY_TO_STATUS_ID.name, 0, Field.Store.YES);
+      doc.add(inReplytoStatusId);
+
+      inReplytoUserId = new LongField(StatusField.IN_REPLY_TO_USER_ID.name, 0, Field.Store.YES);
+      doc.add(inReplytoUserId);
+
+      quotedStatusId = new LongField(StatusField.QUOTED_STATUS_ID.name, 0, Field.Store.YES);
+      doc.add(quotedStatusId);
+
+      retweetedStatusId = new LongField(StatusField.RETWEETED_STATUS_ID.name, 0, Field.Store.YES);
+      doc.add(retweetedStatusId);
+
+      retweetedUserId = new LongField(StatusField.RETWEETED_USER_ID.name, 0, Field.Store.YES);
+      doc.add(retweetedUserId);
+
+      retweetCount = new IntField(StatusField.RETWEET_COUNT.name, 0, Field.Store.YES);
+      doc.add(retweetCount);
     }
   }
 

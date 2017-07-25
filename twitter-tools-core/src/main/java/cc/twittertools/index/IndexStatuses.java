@@ -25,8 +25,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -39,8 +42,12 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.compress.compressors.CompressorInputStream;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
+import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
@@ -67,15 +74,17 @@ public class IndexStatuses {
 
   public enum StatusField {
     ID("id"),
-    SCREEN_NAME("screen_name"),
     EPOCH("epoch"),
     TEXT("text"),
+    TEXT_ENGLISH("text_english"),
     LANG("lang"),
-    IN_REPLY_TO_STATUS_ID("in_reply_to_status_id"),
-    IN_REPLY_TO_USER_ID("in_reply_to_user_id"),
+    SCREEN_NAME("screen_name"),
     FOLLOWERS_COUNT("followers_count"),
     FRIENDS_COUNT("friends_count"),
     STATUSES_COUNT("statuses_count"),
+    QUOTED_STATUS_ID("quoted_status_id"),
+    IN_REPLY_TO_STATUS_ID("in_reply_to_status_id"),
+    IN_REPLY_TO_USER_ID("in_reply_to_user_id"),
     RETWEETED_STATUS_ID("retweeted_status_id"),
     RETWEETED_USER_ID("retweeted_user_id"),
     RETWEET_COUNT("retweet_count");
@@ -235,14 +244,24 @@ public class IndexStatuses {
       InfoStream.setDefault(new PrintStreamInfoStream(System.out));
     }
 
-    Analyzer analyzer = IndexStatuses.ANALYZER;
-    if (cmdline.hasOption(STOPWORDS_OPTION)) {
-      LOG.info("Stopwords=" + cmdline.getOptionValue(STOPWORDS_OPTION));
-      File stopwordsFile = new File(cmdline.getOptionValue(STOPWORDS_OPTION));
-      analyzer = new TweetAnalyzer(stopwordsFile);
-    }
+      Analyzer tweetAnalyzer = IndexStatuses.ANALYZER;
+      Analyzer englishAnalyzer = new EnglishAnalyzer();
+      if (cmdline.hasOption(STOPWORDS_OPTION)) {
+        LOG.info("Stopwords=" + cmdline.getOptionValue(STOPWORDS_OPTION));
+        List<String> lines = FileUtils.readLines(new File(cmdline.getOptionValue(STOPWORDS_OPTION)), StandardCharsets.UTF_8);
+        HashSet<String> stopwordsSet = new HashSet<>(lines.size());
+        stopwordsSet.addAll(lines);
+        CharArraySet stopwords = new CharArraySet(stopwordsSet, true);
+        tweetAnalyzer = new TweetAnalyzer(stopwords);
+        englishAnalyzer = new EnglishAnalyzer(stopwords);
+      }
 
-    final IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+      HashMap<String, Analyzer> fieldAnalyzers = new HashMap<>();
+      fieldAnalyzers.put(StatusField.TEXT.name, tweetAnalyzer);
+      fieldAnalyzers.put(StatusField.TEXT_ENGLISH.name, englishAnalyzer);
+      PerFieldAnalyzerWrapper analyzerWrapper = new PerFieldAnalyzerWrapper(englishAnalyzer, fieldAnalyzers);
+
+    final IndexWriterConfig iwc = new IndexWriterConfig(analyzerWrapper);
     // More RAM before flushing means Lucene writes larger segments to begin with which means less merging later.
     iwc.setRAMBufferSizeMB(48);
 
