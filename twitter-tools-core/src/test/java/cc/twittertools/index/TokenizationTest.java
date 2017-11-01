@@ -64,7 +64,10 @@ public class TokenizationTest extends TestCase {
        new String[] {"mr", "roger", "show"}},
 
       {"'Oz, The Great and Powerful' opens",
-       new String[] {"oz", "the", "great", "and", "power", "open"}}
+       new String[] {"oz", "the", "great", "and", "power", "open"}},
+
+      {"Brother of Oscar Pistorius, Carl Pistorius appears in court over road deathhttps://gu.com/p/3em7p/tw ",
+       new String[] {"brother", "of", "oscar", "pistoriu", "carl", "pistoriu", "appear", "in", "court", "over", "road", "death", "https://gu.com/p/3em7p/tw"}},
   };
 
   public void testTokenizer() throws Exception {
