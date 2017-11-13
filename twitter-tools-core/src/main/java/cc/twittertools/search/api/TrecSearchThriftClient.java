@@ -16,12 +16,15 @@
 
 package cc.twittertools.search.api;
 
+import java.io.IOException;
 import java.util.List;
 
 import javax.annotation.Nullable;
 
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.transport.TFramedTransport;
+import org.apache.thrift.transport.TNonblockingSocket;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 
@@ -47,8 +50,8 @@ public class TrecSearchThriftClient {
     this.port = port;
   }
 
-  public List<TResult> search(String query, long maxId, int numResults, boolean scoreQL) throws TException {
-    TTransport transport = new TSocket(host, port);
+  public List<TResult> search(String query, long maxId, int numResults, boolean scoreQL) throws TException, IOException {
+    TFramedTransport transport = new TFramedTransport(new TSocket(host, port));
     transport.open();
 
     TrecSearch.Client client = new TrecSearch.Client(new TBinaryProtocol(transport));
@@ -68,7 +71,7 @@ public class TrecSearchThriftClient {
     return results;
   }
 
-  public List<TResult> search(String query, long maxId, int numResults) throws TException {
+  public List<TResult> search(String query, long maxId, int numResults) throws TException, IOException {
     return search(query, maxId, numResults, false);
   }
 }

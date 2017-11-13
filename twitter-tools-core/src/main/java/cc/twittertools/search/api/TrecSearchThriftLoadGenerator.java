@@ -17,6 +17,7 @@
 package cc.twittertools.search.api;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -78,7 +79,7 @@ public class TrecSearchThriftLoadGenerator {
           LOG.info(String.format("%s: %4dms for query \"%s\"",
               Thread.currentThread().getName(), t, queryString));
           latencyCounter.addAndGet(t);
-        } catch (TException e) {
+        } catch (TException | IOException e) {
           errorCounter.incrementAndGet();
           LOG.info(String.format("%s: error recorded for query \"%s\"",
               Thread.currentThread().getName(), queryString));
