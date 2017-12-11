@@ -37,6 +37,10 @@ public class QueryLikelihoodModel {
         stem = AnalyzerUtils.stem(analyzer, phrase);
         weight = 1.0f/phrases.length;
       }
+      if (stem.length() == 0) {
+        continue;
+      }
+
       if (weights.containsKey(stem)) {
         weight = weights.get(stem) + weight;
       }
