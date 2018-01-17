@@ -11,7 +11,7 @@ for $f ( `ls $directory` ) {
 
     open(DATA, "gunzip -c $path | grep '{\"created_at\"' | ");
     while ( my $line = <DATA> ) {
-	if ( $line =~ m/{"created_at":.*,"id":(\d+),/ ) {
+	if ( $line =~ m/{"created_at":.*?,"id":(\d+),/ ) {
 	    print "$1\n";
 	}
     }
