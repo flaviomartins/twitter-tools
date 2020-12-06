@@ -7,7 +7,7 @@ import java.util.concurrent.Future;
 
 import junit.framework.JUnit4TestAdapter;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.junit.Test;
 
 import com.google.gson.JsonObject;
@@ -18,7 +18,6 @@ import twitter4j.Status;
 import twitter4j.TwitterObjectFactory;
 
 public class FetchStatusTest {
-  private static final JsonParser JSON_PARSER = new JsonParser();
 
   @Test
   public void basicHTML() throws Exception {
@@ -51,8 +50,8 @@ public class FetchStatusTest {
         jsonStart + AsyncEmbeddedJsonStatusBlockCrawler.JSON_START.length());
 
     String json = html.substring(jsonStart + AsyncEmbeddedJsonStatusBlockCrawler.JSON_START.length(), jsonEnd);
-    json = StringEscapeUtils.unescapeHtml(json);
-    JsonObject page = (JsonObject) JSON_PARSER.parse(json);
+    json = StringEscapeUtils.unescapeHtml4(json);
+    JsonObject page = (JsonObject) JsonParser.parseString(json);
     JsonObject statusJson = page.getAsJsonObject("embedData").getAsJsonObject("status");
 
     Status status = TwitterObjectFactory.createStatus(statusJson.toString());

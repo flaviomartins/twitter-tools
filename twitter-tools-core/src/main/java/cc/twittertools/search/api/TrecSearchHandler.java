@@ -24,15 +24,11 @@ import javax.annotation.Nullable;
 import cc.twittertools.util.AnalyzerUtils;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.NumericRangeFilter;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.*;
 
 import cc.twittertools.index.IndexStatuses;
 import cc.twittertools.index.IndexStatuses.StatusField;
@@ -81,8 +77,8 @@ public class TrecSearchHandler implements TrecSearch.Iface {
     long startTime = System.currentTimeMillis();
 
     try {
-      Filter filter =
-          NumericRangeFilter.newLongRange(StatusField.ID.name, 0L, query.max_id, true, true);
+      Query filter =
+          LongPoint.newRangeQuery(StatusField.ID.name, 0L, query.max_id);
 
       Query q = QUERY_PARSER.parse(query.text);
       Map<String, Float> weights = null;
@@ -101,7 +97,13 @@ public class TrecSearchHandler implements TrecSearch.Iface {
       }
 
       int num = query.num_results > 10000 ? 10000 : query.num_results;
-      TopDocs rs = searcher.search(q, filter, num);
+
+      BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+      queryBuilder.add(q, BooleanClause.Occur.SHOULD);
+      queryBuilder.add(filter, BooleanClause.Occur.FILTER);
+      Query finalQuery = queryBuilder.build();
+
+      TopDocs rs = searcher.search(finalQuery, num);
       for (ScoreDoc scoreDoc : rs.scoreDocs) {
         Document hit = searcher.doc(scoreDoc.doc);
 

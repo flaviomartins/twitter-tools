@@ -28,15 +28,11 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.NumericRangeFilter;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
 import org.apache.lucene.store.FSDirectory;
@@ -136,9 +132,15 @@ public class SearchStatuses {
 
     QueryParser p = new QueryParser(IndexStatuses.StatusField.TEXT.name, IndexStatuses.ANALYZER);
     Query query = p.parse(queryText);
-    Filter filter = NumericRangeFilter.newLongRange(StatusField.ID.name, 0L, maxId, true, true);
+    Query filter = LongPoint.newRangeQuery(StatusField.ID.name, 0L,
+            maxId);
 
-    TopDocs rs = searcher.search(query, filter, numResults);
+    BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+    queryBuilder.add(query, BooleanClause.Occur.SHOULD);
+    queryBuilder.add(filter, BooleanClause.Occur.FILTER);
+    Query finalQuery = queryBuilder.build();
+
+    TopDocs rs = searcher.search(finalQuery, numResults);
 
     int i = 1;
     for (ScoreDoc scoreDoc : rs.scoreDocs) {

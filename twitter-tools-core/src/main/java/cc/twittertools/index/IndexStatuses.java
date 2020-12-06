@@ -270,9 +270,11 @@ public class IndexStatuses {
     threads.stop();
 
     final long t1 = System.currentTimeMillis();
-    LOG.info("Indexer: indexing done (" + (t1-t0)/1000.0 + " sec); total " + w.maxDoc() + " docs");
-    if (!doUpdate && docCountLimit != -1 && w.maxDoc() != docCountLimit) {
-      throw new RuntimeException("w.maxDoc()=" + w.maxDoc() + " but expected " + docCountLimit);
+    IndexWriter.DocStats docStats = w.getDocStats();
+    int maxDoc = docStats.maxDoc;
+    LOG.info("Indexer: indexing done (" + (t1-t0)/1000.0 + " sec); total " + maxDoc + " docs");
+    if (!doUpdate && docCountLimit != -1 && maxDoc != docCountLimit) {
+      throw new RuntimeException("w.maxDoc()=" + maxDoc + " but expected " + docCountLimit);
     }
     if (threads.failed.get()) {
       throw new RuntimeException("exceptions during indexing");
@@ -284,7 +286,7 @@ public class IndexStatuses {
 
     final Map<String,String> commitData = new HashMap<String,String>();
     commitData.put("userData", "multi");
-    w.setCommitData(commitData);
+    w.setLiveCommitData(commitData.entrySet());
     w.commit();
     final long t3 = System.currentTimeMillis();
     LOG.info("Indexer: commit multi (took " + (t3-t2)/1000.0 + " sec)");

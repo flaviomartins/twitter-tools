@@ -7,11 +7,11 @@ import java.util.List;
 
 import junit.framework.TestCase;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 
 import com.google.common.collect.Lists;
-import org.apache.lucene.analysis.util.CharArraySet;
 import org.junit.Assert;
 
 public class TokenizationTest extends TestCase {

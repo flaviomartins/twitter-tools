@@ -39,13 +39,11 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
@@ -67,7 +65,6 @@ public class AsyncHTMLStatusBlockCrawler {
   private static final int WAIT_BEFORE_RETRY = 1000;
   private static final Timer timer = new Timer(true);
 
-  private static final JsonParser JSON_PARSER = new JsonParser();
   private static final Gson GSON = new Gson();
 
   private final File file;

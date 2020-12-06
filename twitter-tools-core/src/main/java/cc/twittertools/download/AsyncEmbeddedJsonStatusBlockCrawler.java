@@ -37,7 +37,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Preconditions;
@@ -68,7 +68,6 @@ public class AsyncEmbeddedJsonStatusBlockCrawler {
   private static final int WAIT_BEFORE_RETRY = 1000;
   private static final Timer timer = new Timer(true);
 
-  private static final JsonParser JSON_PARSER = new JsonParser();
   private static final Gson GSON = new Gson();
 
   private final File file;
@@ -306,8 +305,8 @@ public class AsyncEmbeddedJsonStatusBlockCrawler {
         }
 
         String json = html.substring(jsonStart + JSON_START.length(), jsonEnd);
-        json = StringEscapeUtils.unescapeHtml(json);
-        JsonObject page = (JsonObject) JSON_PARSER.parse(json);
+        json = StringEscapeUtils.unescapeHtml4(json);
+        JsonObject page = (JsonObject) JsonParser.parseString(json);
 
         JsonObject status = page.getAsJsonObject("embedData").getAsJsonObject("status");
 

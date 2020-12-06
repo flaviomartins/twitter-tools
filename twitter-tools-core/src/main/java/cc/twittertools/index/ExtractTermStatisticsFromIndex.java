@@ -26,11 +26,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.SlowCompositeReaderWrapper;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.*;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 
@@ -77,7 +73,7 @@ public class ExtractTermStatisticsFromIndex {
 
     out.println("\t" + sumDocFreq + "\t" + sumTotalTermFreq);
 
-    Terms terms = SlowCompositeReaderWrapper.wrap(reader).terms(StatusField.TEXT.name);
+    Terms terms = MultiTerms.getTerms(reader, IndexStatuses.StatusField.TEXT.name);
     TermsEnum termsEnum = terms.iterator();
 
     long totalTerms = 0;
